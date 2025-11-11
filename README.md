@@ -1,3 +1,4 @@
+
 # Real Estate Platform
 
 *Automatically synced with your [v0.app](https://v0.app) deployments*
@@ -28,3 +29,7 @@ Continue building your app on:
 2. Deploy your chats from the v0 interface
 3. Changes are automatically pushed to this repository
 4. Vercel deploys the latest version from this repository
+
+# 1team-project
+대구AI개발교육 - 1조 상부상조
+

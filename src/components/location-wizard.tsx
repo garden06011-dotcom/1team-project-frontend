@@ -168,7 +168,7 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
         city: selectedCity,
         district: selectedDistrict,
       })
-      setStep(5)
+      setStep(4)
     }
   }
 
@@ -285,10 +285,11 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">진행률</span>
-              <span className="font-medium">{step === 3 ? 3 : step > 3 ? step - 1 : step} / 4</span>
+              <span className="font-medium">{step} / 4</span> 
             </div>
-            <Progress value={step === 3 ? 60 : step > 3 ? ((step - 1) / 4) * 100 : (step / 4) * 100} className="h-2" />
+            <Progress value={(step / 4) * 100} className="h-2" /> 
           </div>
+
         </CardHeader>
 
         <CardContent className="space-y-6">
@@ -355,16 +356,18 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
             </div>
           )}
 
-          {/* Step 3: Hierarchical Location Selection */}
-          {step === 3 && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold mb-1">지역설정</h3>
-                <p className="text-sm text-muted-foreground">지역명 검색 예) 강남구, 역삼동</p>
-              </div>
+  
 
-              {/* Search Bar */}
-              <div className="relative">
+      
+
+{/* Step 3: Hierarchical Location Selection */}
+{step === 3 && (
+  <div className="space-y-4">
+    <div>
+      <h3 className="text-lg font-semibold mb-1">지역설정</h3>
+    </div>
+            {/* Search Bar */}
+              {/* <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   value={searchQuery}
@@ -377,10 +380,10 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
                     <X className="h-4 w-4 text-muted-foreground" />
                   </button>
                 )}
-              </div>
+              </div> */}
 
               {/* Location Selection Toggles */}
-              <div className="flex items-center gap-4 text-sm">
+              {/* <div className="flex items-center gap-4 text-sm">
                 <button className="flex items-center gap-2 text-primary">
                   <MapPin className="h-4 w-4" />
                   <span>현재 위치 추가</span>
@@ -392,135 +395,158 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
                     <span className="text-xs">?</span>
                   </button>
                 </div>
-              </div>
+              </div> */}
 
-              {/* Three Column Layout */}
-              <div className="border rounded-lg overflow-hidden">
-                <div className="grid grid-cols-3 border-b bg-muted/30">
-                  <div className="p-3 text-center text-sm font-medium border-r">시/도</div>
-                  <div className="p-3 text-center text-sm font-medium border-r">시/구/군</div>
-                  <div className="p-3 text-center text-sm font-medium">동/읍/면</div>
-                </div>
-                <div className="grid grid-cols-3 max-h-[300px]">
-                  {/* Cities Column */}
-                  <div className="border-r overflow-y-auto">
-                    {cities.map((city) => (
-                      <button
-                        key={city}
-                        onClick={() => {
-                          setSelectedCity(city)
-                          setSelectedDistrict("")
-                          setSelectedNeighborhoods([])
-                        }}
-                        className={`w-full p-3 text-left text-sm hover:bg-muted/50 transition-colors ${
-                          selectedCity === city ? "bg-primary/10 text-primary font-medium" : ""
-                        }`}
-                      >
-                        {city}
-                      </button>
-                    ))}
-                  </div>
+    {/* Three Column Layout */}
+    <div className="border rounded-lg overflow-hidden">
+      <div className="grid grid-cols-3 border-b bg-muted/30">
+        <div className="p-3 text-center text-sm font-medium border-r">시/도</div>
+        <div className="p-3 text-center text-sm font-medium border-r">시/구/군</div>
+        <div className="p-3 text-center text-sm font-medium">동/읍/면</div>
+      </div>
 
-                  {/* Districts Column */}
-                  <div className="border-r overflow-y-auto">
-                    <button
-                      onClick={() => setSelectedDistrict("")}
-                      className={`w-full p-3 text-left text-sm hover:bg-muted/50 transition-colors ${
-                        selectedDistrict === "" ? "bg-primary/10 text-primary font-medium" : ""
-                      }`}
-                    >
-                      전체
-                    </button>
-                    {districts.map((district) => (
-                      <button
-                        key={district}
-                        onClick={() => setSelectedDistrict(district)}
-                        className={`w-full p-3 text-left text-sm hover:bg-muted/50 transition-colors ${
-                          selectedDistrict === district ? "bg-primary/10 text-primary font-medium" : ""
-                        }`}
-                      >
-                        {district}
-                      </button>
-                    ))}
-                  </div>
+      <div className="grid grid-cols-3 max-h-[300px]">
+        {/* Cities Column */}
+        <div className="border-r overflow-y-auto">
+          {cities.map((city) => (
+            <button
+              key={city}
+              onClick={() => {
+                setSelectedCity(city)
+                setSelectedDistrict("")
+                // 전체 초기화 X → 여러 도시 누적 가능하게 할 수도 있음
+              }}
+              className={`w-full p-3 text-left text-sm hover:bg-muted/50 transition-colors ${
+                selectedCity === city ? "bg-primary/10 text-primary font-medium" : ""
+              }`}
+            >
+              {city}
+            </button>
+          ))}
+        </div>
 
-                  {/* Neighborhoods Column */}
-                  <div className="overflow-y-auto">
-                    {selectedCity && selectedDistrict ? (
-                      <>
-                        <button
-                          onClick={() => setSelectedNeighborhoods([])}
-                          className={`w-full p-3 text-left text-sm hover:bg-muted/50 transition-colors flex items-center justify-between ${
-                            selectedNeighborhoods.length === 0 ? "bg-muted/50" : ""
-                          }`}
-                        >
-                          <span>전체</span>
-                        </button>
-                        {neighborhoods.map((neighborhood) => {
-                          const isSelected = selectedNeighborhoods.includes(neighborhood)
-                          return (
-                            <button
-                              key={neighborhood}
-                              onClick={() => toggleNeighborhood(neighborhood)}
-                              className={`w-full p-3 text-left text-sm hover:bg-muted/50 transition-colors flex items-center justify-between ${
-                                isSelected ? "bg-primary/10 text-primary" : ""
-                              }`}
-                            >
-                              <span>{neighborhood}</span>
-                              {isSelected && <CheckCircle2 className="h-4 w-4" />}
-                            </button>
-                          )
-                        })}
-                      </>
-                    ) : (
-                      <div className="p-8 text-center text-sm text-muted-foreground">시/구를 선택해주세요</div>
-                    )}
-                  </div>
-                </div>
-              </div>
+        {/* Districts Column */}
+        <div className="border-r overflow-y-auto">
+          {/* ✅ 구 전체 선택 시 → 시 기준 추가 */}
+          <button
+            onClick={() => {
+              if (selectedCity) {
+                if (!selectedNeighborhoods.includes(selectedCity)) {
+                  setSelectedNeighborhoods((prev) => [...prev, selectedCity])
+                }
+                console.log(`${selectedCity} 전체 기준 검색`)
+              }
+            }}
+            className="w-full p-3 text-left text-sm hover:bg-muted/50 transition-colors"
+          >
+            전체
+          </button>
 
-              {/* Selected Neighborhoods */}
-              {selectedNeighborhoods.length > 0 && (
-                <div className="space-y-2">
-                  <div className="text-sm">
-                    <span className="text-primary font-medium">최대 10개</span>까지 선택할 수 있어요.
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedNeighborhoods.map((neighborhood) => (
-                      <Badge key={neighborhood} variant="secondary" className="pr-1">
-                        {neighborhood}
-                        <button
-                          onClick={() => removeNeighborhood(neighborhood)}
-                          className="ml-1 hover:bg-muted rounded-full p-0.5"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+          {districts.map((district) => (
+            <button
+              key={district}
+              onClick={() => {
+                setSelectedDistrict(district)
+                // ✅ 기존 선택 유지 (초기화 X)
+              }}
+              className={`w-full p-3 text-left text-sm hover:bg-muted/50 transition-colors ${
+                selectedDistrict === district ? "bg-primary/10 text-primary font-medium" : ""
+              }`}
+            >
+              {district}
+            </button>
+          ))}
+        </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={resetLocationSelection}
-                  className="flex items-center gap-2 bg-transparent"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  초기화
-                </Button>
-                <Button
-                  onClick={applyLocationSelection}
-                  disabled={selectedNeighborhoods.length === 0}
-                  className="flex-1 bg-[#FFE500] hover:bg-[#FFD400] text-black font-medium"
-                >
-                  {selectedNeighborhoods.length}개 지역 적용하기
-                </Button>
-              </div>
+        {/* Neighborhoods Column */}
+        <div className="overflow-y-auto">
+          {selectedDistrict ? (
+            <>
+              {/* ✅ 동 전체 선택 → 구 기준 추가 */}
+              <button
+                onClick={() => {
+                  if (!selectedNeighborhoods.includes(selectedDistrict)) {
+                    setSelectedNeighborhoods((prev) => [...prev, selectedDistrict])
+                  }
+                  console.log(`${selectedCity} ${selectedDistrict} 전체 기준 검색`)
+                }}
+                className={`w-full p-3 text-left text-sm hover:bg-muted/50 transition-colors flex items-center justify-between ${
+                  selectedNeighborhoods.includes(selectedDistrict)
+                    ? "bg-primary/10 text-primary font-medium"
+                    : ""
+                }`}
+              >
+                <span>전체</span>
+              </button>
+
+              {neighborhoods.map((neighborhood) => {
+                const isSelected = selectedNeighborhoods.includes(neighborhood)
+                return (
+                  <button
+                    key={neighborhood}
+                    onClick={() => toggleNeighborhood(neighborhood)}
+                    className={`w-full p-3 text-left text-sm hover:bg-muted/50 transition-colors flex items-center justify-between ${
+                      isSelected ? "bg-primary/10 text-primary" : ""
+                    }`}
+                  >
+                    <span>{neighborhood}</span>
+                    {isSelected && <CheckCircle2 className="h-4 w-4" />}
+                  </button>
+                )
+              })}
+            </>
+          ) : (
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              시/구를 선택해주세요
             </div>
           )}
+        </div>
+      </div>
+    </div>
+
+    {/* ✅ 선택된 지역 표시 */}
+    {selectedNeighborhoods.length > 0 && (
+      <div className="space-y-2">
+        <div className="text-sm">
+          <span className="text-primary font-medium">최대 10개</span>까지 선택할 수 있어요.
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {selectedNeighborhoods.map((neighborhood) => (
+            <Badge key={neighborhood} variant="secondary" className="pr-1">
+              {neighborhood}
+              <button
+                onClick={() => removeNeighborhood(neighborhood)}
+                className="ml-1 hover:bg-muted rounded-full p-0.5"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* ✅ Action Buttons — 이전 + 적용하기 (통일된 디자인) */}
+    <div className="flex gap-3 pt-4 border-t">
+      <Button
+        variant="outline"
+        onClick={handleBack} // ✅ 이전 단계로 이동
+        className="flex-1 bg-transparent"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        이전
+      </Button>
+      <Button
+        onClick={applyLocationSelection}
+        disabled={selectedNeighborhoods.length === 0}
+        className="flex-1"
+      >
+        {selectedNeighborhoods.length}개 지역 적용하기
+        <ArrowRight className="h-4 w-4 ml-2" />
+      </Button>
+    </div>
+  </div>
+)}
 
           {/* Step 5: Analysis Type */}
           {step === 4 && (

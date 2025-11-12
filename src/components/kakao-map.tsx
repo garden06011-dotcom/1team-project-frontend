@@ -386,7 +386,7 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
                           <h4 className="font-semibold mb-3">항목별 분석</h4>
                           <div className="space-y-4">
                             {/* Traffic Score */}
-                            <Card>
+                            {/* <Card>
                               <CardContent className="p-4">
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-2">
@@ -402,7 +402,7 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
                                   지하철역 도보 2분 거리로 교통 접근성이 우수하며 유동인구가 매우 높습니다
                                 </p>
                               </CardContent>
-                            </Card>
+                            </Card> */}
 
                             {/* Rent Score */}
                             <Card>
@@ -498,9 +498,10 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
                         <CardContent className="p-4">
                           <div className="flex items-center gap-2 mb-1">
                             <TrendingUp className="h-4 w-4 text-secondary" />
-                            <span className="text-xs text-muted-foreground">평균 매출</span>
+                            <span className="text-xs text-muted-foreground">평균 임대료</span>
                           </div>
-                          <p className="text-lg font-bold">{analysisData.revenue}</p>
+                          {/* 임대료로 바꿔야함 */}
+                          <p className="text-lg font-bold">{analysisData.revenue}</p> 
                         </CardContent>
                       </Card>
                       <Card>
@@ -524,11 +525,11 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
                     </div>
 
                     <div>
-                      <h4 className="font-semibold mb-2">상권 점수</h4>
+                      <h4 className="font-semibold mb-2">유동인구 분석</h4>
                       <div className="space-y-2">
                         <div>
                           <div className="flex justify-between text-sm mb-1">
-                            <span>접근성</span>
+                            <span>여성</span>
                             <span className="font-medium">85점</span>
                           </div>
                           <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -537,22 +538,22 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
                         </div>
                         <div>
                           <div className="flex justify-between text-sm mb-1">
-                            <span>유동인구</span>
+                            <span>남성</span>
                             <span className="font-medium">92점</span>
                           </div>
                           <div className="h-2 bg-muted rounded-full overflow-hidden">
                             <div className="h-full bg-secondary" style={{ width: "92%" }} />
                           </div>
                         </div>
-                        <div>
+                        {/* <div>
                           <div className="flex justify-between text-sm mb-1">
-                            <span>상권 성장성</span>
+                            <span>시간대별</span>
                             <span className="font-medium">78점</span>
                           </div>
                           <div className="h-2 bg-muted rounded-full overflow-hidden">
                             <div className="h-full bg-accent" style={{ width: "78%" }} />
                           </div>
-                        </div>
+                        </div> */}
                       </div>
                     </div>
                   </TabsContent>
@@ -628,7 +629,7 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
                     <div>
                       <div className="flex items-center gap-2 mb-4">
                         <TrendingUp className="h-5 w-5 text-secondary" />
-                        <h4 className="font-semibold text-lg">요일별 평균 매출</h4>
+                        <h4 className="font-semibold text-lg">요일별 유동인구</h4>
                       </div>
                       <Card className="bg-muted/30">
                         <CardContent className="p-4">
@@ -710,7 +711,7 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
                     <div>
                       <div className="flex items-center gap-2 mb-4">
                         <Calendar className="h-5 w-5 text-accent" />
-                        <h4 className="font-semibold text-lg">월별 매출 추이</h4>
+                        <h4 className="font-semibold text-lg">임대료 변화 추이</h4>
                       </div>
                       <Card className="bg-muted/30">
                         <CardContent className="p-4">

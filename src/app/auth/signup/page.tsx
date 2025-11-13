@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, ChangeEvent, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/src/lib/auth-context"
@@ -24,6 +24,13 @@ export default function SignupPage() {
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false);
+  const [birth, setBirth] = useState("")  // YYYYMMDD
+  const [genderDigit, setGenderDigit] = useState<string>(""); // "1" | "2" | "3" | "4"
+  const [birthErr, setBirthErr] = useState<string>("");
+  const [genderErr, setGenderErr] = useState<string>("");
+
+  const genderInputRef = useRef<HTMLInputElement>(null);
+
   const [showCodeBox, setShowCodeBox] = useState(false);
   const [emailReadOnly, setEmailReadOnly] = useState(false);
   const [isCounting, setIsCounting] = useState(false);
@@ -75,7 +82,11 @@ export default function SignupPage() {
     setShowTimer(false);
   }
 
-  const handleVerifyClick = handleVerifyBtn({ email, code: Number(code), onSuccess: handleVerifySuccess });
+  const handleVerifyClick = handleVerifyBtn({ 
+    
+    email, 
+    code: Number(code), 
+    onSuccess: handleVerifySuccess });
 
 
 
@@ -184,6 +195,91 @@ export default function SignupPage() {
   }
 
 
+  // [추가] util 함수들
+  const onlyDigits = (s: string) => s.replace(/\D/g, "");
+
+  const clampBirth = (s: string) => onlyDigits(s).slice(0, 8); // YYYYMMDD 최대 8자리
+
+  const isValidYyyymmdd = (yyyymmdd: string) => {
+    if (yyyymmdd.length !== 8) return false;
+    const y = parseInt(yyyymmdd.slice(0, 4), 10);
+    const m = parseInt(yyyymmdd.slice(4, 6), 10);
+    const d = parseInt(yyyymmdd.slice(6, 8), 10);
+    if (y < 1900 || y > 2100) return false;
+    if (m < 1 || m > 12) return false;
+    const daysInMonth = new Date(y, m, 0).getDate(); // 해당 월의 마지막 날
+    return d >= 1 && d <= daysInMonth;
+  };
+
+  const allowedGenderDigits = (yyyymmdd: string): ("1"|"2"|"3"|"4")[] => {
+    if (yyyymmdd.length < 8 || !isValidYyyymmdd(yyyymmdd)) return ["1","2","3","4"];
+    return yyyymmdd >= "20000101" ? ["3","4"] : ["1","2"];
+  };
+
+  const genderFromDigit = (digit: "1"|"2"|"3"|"4") => (digit === "1" || digit === "3" ? "M" : "F");
+
+
+
+  // 생년월일 인증
+  // [추가] 생년월일 변경
+  const handleBirthChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const next = clampBirth(e.target.value);
+    setBirth(next);
+
+    // 유효성
+    if (next.length === 0) {
+      setBirthErr("생년월일(YYYYMMDD)을 입력하세요.");
+    } else if (next.length < 8) {
+      setBirthErr("8자리로 입력하세요. 예: 19991231");
+    } else if (!isValidYyyymmdd(next)) {
+      setBirthErr("유효한 날짜가 아닙니다.");
+    } else {
+      setBirthErr("");
+    }
+
+    // 생년월일 바뀌면 성별코드 가능 범위도 바뀜 → 현재 값이 허용 범위 밖이면 비우기
+    const allow = allowedGenderDigits(next);
+    if (genderDigit && !allow.includes(genderDigit as any)) {
+      setGenderDigit("");
+    }
+  };
+
+  // [추가] 성별 한 자리 변경 (숫자만, 길이 1, 허용 범위 체크)
+  const handleGenderDigitChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const digit = onlyDigits(e.target.value).slice(0, 1);
+    const allow = allowedGenderDigits(birth) as string[];
+    if (digit && !allow.includes(digit)) {
+      setGenderErr(
+        birth && isValidYyyymmdd(birth)
+          ? birth >= "20000101"
+            ? "2000년생 이후는 3(남) 또는 4(여)만 가능합니다."
+            : "1999년생 이전은 1(남) 또는 2(여)만 가능합니다."
+          : "생년월일을 올바르게 입력하세요."
+      );
+      setGenderDigit(""); // 허용되지 않으면 비움
+      return;
+    }
+    setGenderDigit(digit);
+    setGenderErr(digit ? "" : "한 자리를 입력하세요");
+  };
+
+  // [참고] 전송/저장 시 가공 예시
+  const payloadPreview = useMemo(() => {
+    if (birth.length === 8 && isValidYyyymmdd(birth) && ["1","2","3","4"].includes(genderDigit)) {
+      const yyyy = birth.slice(0,4);
+      const mm   = birth.slice(4,6);
+      const dd   = birth.slice(6,8);
+      const gender = genderFromDigit(genderDigit as "1"|"2"|"3"|"4"); // "M" | "F"
+      return {
+        birthISO: `${yyyy}-${mm}-${dd}`, // "1999-12-31"
+        genderDigit,                     // "1"|"2"|"3"|"4"
+        gender,                          // "M"|"F"
+      };
+    }
+    return null;
+  }, [birth, genderDigit]);
+
+
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -271,7 +367,9 @@ export default function SignupPage() {
                 />
               </div>
             </div>
-            <Button type="button" className="w-full cursor-pointer hover:text-white transition-all duration-300" onClick={handleSendClick}>
+            <Button type="button" 
+              className="w-full cursor-pointer hover:text-white transition-all duration-300" 
+              onClick={handleSendClick}>
               {emailReadOnly ? "인증번호 재전송" : "인증번호 전송"}
             </Button>
                 <div className="space-y-2">
@@ -289,9 +387,9 @@ export default function SignupPage() {
                     />
                     
                     <Button 
-                    type="button"
-                    className="w-50 space-y-2 cursor-pointer hover:text-white transition-all duration-300"
-                    onClick={handleVerifyClick}
+                      type="button"
+                      className="w-50 space-y-2 cursor-pointer hover:text-white transition-all duration-300"
+                      onClick={handleVerifyClick}
                     // disabled={isLoading}
                     >
                       인증번호 확인
@@ -335,6 +433,61 @@ export default function SignupPage() {
               </div>
               <div className="text-xs text-red-500">{confirmPasswordErr}</div>
             </div>
+
+
+          <div className="space-y-3 w-full gap-8 flex items-center">
+            {/* 생년월일 및 성별 */}
+            <div className="space-y-2">
+              <Label htmlFor="birth">주민등록번호</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="birth"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="예: 20010415"
+                  value={birth}
+                  // ref={handleBirthChange}
+                  onChange={handleBirthChange}
+                  maxLength={8}
+                  className="pl-10 w-50"
+                  required
+                />
+              </div>
+              <div className="text-xs text-red-500">{nicknameErr}</div>
+            </div>
+            <div className="text-lg pt-2">-</div>
+              {/* [성별 한 자리] */}
+              <div className="flex flex-col">
+                <div className="space-y-2">
+                    <Label htmlFor="genderDigit">성별 코드 (한 자리)</Label>
+                    <div className="flex items-center gap-2">
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-10 mb-2">
+                        <Input
+                          id="genderDigit"
+                          ref={genderInputRef}
+                          type="text"
+                          inputMode="numeric"
+                          // placeholder="1~4"
+                          value={genderDigit}
+                          onChange={handleGenderDigitChange}
+                          maxLength={1}
+                          className="text-center"
+                          required
+                        />
+                        </div>
+                    </div>
+                    
+                      <div className="text-lg">******</div>
+                    </div>
+
+                </div>
+
+                <div className="text-xs text-red-500 min-h-4">{genderErr}</div>
+              </div>
+          </div>
 
             {/* 닉네임 인증 */}
             <div className="space-y-2">

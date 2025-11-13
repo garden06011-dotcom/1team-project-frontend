@@ -3,12 +3,12 @@
 import API from "./axiosApi"
 
 export const sendEmailCode = async (email: string) => {
-    const response = await API.post("/api/send-code", { email })
+    const response = await API.post('/api/send-email-code', { email })
     return response.data;
 }
 
 export const verifyEmailCode = async (email: string, code: number) => {
-    const response = await API.post('/api/verify-code', { email, code })
+    const response = await API.post('/api/verify-email-code', { email, code })
     return response.data;
 }
 

@@ -10,7 +10,8 @@ import { Button } from "@/src/components/ui/button"
 import { Input } from "@/src/components/ui/input"
 import { Label } from "@/src/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/src/components/ui/card"
-import { Building2, Mail, Lock, Sparkles } from "lucide-react"
+import { Building2, Mail, Lock, Sparkles } from "lucide-react";
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")

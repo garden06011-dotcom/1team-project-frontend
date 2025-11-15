@@ -15,7 +15,7 @@ export default function CommunityPage() {
   const [sortBy, setSortBy] = useState("latest")
   const [selectedCategory, setSelectedCategory] = useState("all")
 
-  const categories = ["전체", "창업후기", "정보공유", "질문", "노하우", "자유"]
+  const categories = ["전체", "정보공유", "질문", "자유"]
 
   const filteredPosts = mockPosts
     .filter((post) => {
@@ -42,7 +42,7 @@ export default function CommunityPage() {
           <p className="text-muted-foreground">창업 정보와 경험을 공유하는 공간입니다</p>
         </div>
         <Button size="lg" asChild>
-          <Link href="/community/write">
+          <Link href="/board/write">
             <PenSquare className="mr-2 h-5 w-5" />
             글쓰기
           </Link>

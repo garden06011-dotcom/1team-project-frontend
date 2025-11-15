@@ -29,12 +29,6 @@ export function Header() {
     { name: "커뮤니티", href: "/board" },
   ]
 
-  const isAuthPage = pathname === "/login" || pathname === "/signup"
-
-  if (isAuthPage) {
-    return null
-  }
-
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
@@ -69,7 +63,7 @@ export function Header() {
           {user ? (
             <>
               <Button variant="ghost" size="icon" className="relative hover:bg-primary/10" asChild>
-                <Link href="/auth/mypage?tab=notifications">
+                <Link href="/user/mypage?tab=notifications">
                   <Bell className="h-5 w-5" />
                   <Badge
                     variant="destructive"
@@ -96,18 +90,18 @@ export function Header() {
                   <DropdownMenuLabel>
                     <div>
                       <p className="font-medium">{user.name}</p>
-                      <p className="text-xs text-muted-foreground">{user.email}</p>
+                      <p className="text-xs text-muted-foreground">{user.email || user.user_id}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/auth/mypage" className="cursor-pointer">
+                    <Link href="/user/mypage" className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />
                       마이페이지
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/auth/mypage?tab=favorites" className="cursor-pointer">
+                    <Link href="/user/mypage?tab=favorites" className="cursor-pointer">
                       <Heart className="mr-2 h-4 w-4" />
                       관심 지역
                       <Badge variant="secondary" className="ml-auto">
@@ -116,7 +110,7 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/auth/settings" className="cursor-pointer">
+                    <Link href="/settings" className="cursor-pointer">
                       <Settings className="mr-2 h-4 w-4" />
                       설정
                     </Link>
@@ -132,10 +126,10 @@ export function Header() {
           ) : (
             <div className="hidden md:flex items-center gap-2">
               <Button variant="ghost" asChild className="hover:bg-primary/10">
-                <Link href="/auth/login">로그인</Link>
+                <Link href="/user/login">로그인</Link>
               </Button>
               <Button asChild className="shadow-md">
-                <Link href="/auth/signup">회원가입</Link>
+                <Link href="/user/signup">회원가입</Link>
               </Button>
             </div>
           )}
@@ -172,14 +166,14 @@ export function Header() {
             {!user && (
               <>
                 <Link
-                  href="/auth/login"
+                  href="/user/login"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="px-4 py-3 rounded-lg text-sm font-medium hover:bg-muted"
                 >
                   로그인
                 </Link>
                 <Link
-                  href="/auth/signup"
+                  href="/user/signup"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="px-4 py-3 rounded-lg text-sm font-medium bg-primary text-primary-foreground"
                 >

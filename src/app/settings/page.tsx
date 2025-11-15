@@ -50,10 +50,10 @@ export default function SettingsPage() {
               <Input id="email" type="email" defaultValue={user.email} disabled />
               <p className="text-xs text-muted-foreground">이메일은 변경할 수 없습니다</p>
             </div>
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label htmlFor="phone">전화번호</Label>
               <Input id="phone" type="tel" placeholder="010-0000-0000" />
-            </div>
+            </div> */}
             <Button>변경사항 저장</Button>
           </CardContent>
         </Card>
@@ -131,7 +131,8 @@ export default function SettingsPage() {
         </Card>
 
         {/* Security Settings */}
-        <Card>
+        
+        {/* <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
@@ -154,7 +155,7 @@ export default function SettingsPage() {
             </div>
             <Button>비밀번호 변경</Button>
           </CardContent>
-        </Card>
+        </Card> */}
 
         {/* Danger Zone */}
         <Card className="border-destructive">

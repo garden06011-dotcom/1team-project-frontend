@@ -21,18 +21,18 @@ const API = axios.create({
 
 
 // 요청 인터셉터: accessToken 헤더 주입
-API.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem("accessToken")
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`
-        }
-        console.log('API request:', config)
-        return config;
+// API.interceptors.request.use(
+//     (config) => {
+//         const token = localStorage.getItem("accessToken")
+//         if (token) {
+//             config.headers.Authorization = `Bearer ${token}`
+//         }
+//         console.log('API request:', config)
+//         return config;
 
-    },
-    (error) => Promise.reject(error)
-);
+//     },
+//     (error) => Promise.reject(error)
+// );
 
 
 // 응답 인터셉터: 401 처리

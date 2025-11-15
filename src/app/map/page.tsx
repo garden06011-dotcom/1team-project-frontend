@@ -20,6 +20,8 @@ interface LocationRecommendation {
   lng: number
 }
 
+
+
 export default function MapPage() {
   const [showWizard, setShowWizard] = useState(true)
   const [selectedLocation, setSelectedLocation] = useState<LocationRecommendation | null>(null)

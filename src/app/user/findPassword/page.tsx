@@ -13,7 +13,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Checkbox } from "@/src/components/ui/checkbox"
 import { Building2, Mail, Lock, User } from "lucide-react";
 import { EmailVal, CodeVal, PasswordVal } from "@/src/lib/validation";
-import { handleEmailBtn, handleVerifyBtn } from "@/src/lib/handleCodeBtn";
+import { handleSendResetBtn, handleVerifyResetBtn } from "@/src/lib/handleCodeBtn";
+import API from "@/src/api/axiosApi"
+
 
 export default function FindPasswordPage() {
   const [email, setEmail] = useState("")
@@ -48,17 +50,17 @@ export default function FindPasswordPage() {
     setShowCodeBox(true);
     setShowTimer(true);
     setShowTimer(true);
-    setEmailReadOnly(true);
+    setEmailReadOnly(false);
   }
 
-  const handleSendClick = handleEmailBtn({ email, onSuccess: handleSendSuccess });
+  const handleSendClick = handleSendResetBtn({ email, onSuccess: handleSendSuccess });
   
   // 인증번호 확인 이벤트
   const handleVerifySuccess = () => {
     setShowCodeBox(false);
     setShowTimer(false);
     setShowTimer(false);
-    setEmailReadOnly(false);
+    setEmailReadOnly(true);
   }
 
   const handleTimeout = () => {
@@ -67,7 +69,7 @@ export default function FindPasswordPage() {
     setShowTimer(false);
   }
 
-  const handleVerifyClick = handleVerifyBtn({ email, code: Number(code), onSuccess: handleVerifySuccess });
+  const handleVerifyClick = handleVerifyResetBtn({ email, code: Number(code), onSuccess: handleVerifySuccess });
 
 
   // 이메일 인증
@@ -96,7 +98,25 @@ export default function FindPasswordPage() {
       setCodeErr("")
       return;
     }
-    if(!CodeVal(codeValue)) {
+    
+    // 스페이스바 있는 경우 에러 메시지 표시 안함
+    const trimmedValue = codeValue.trim()
+    if(trimmedValue === "") {
+      setCodeErr("")
+      return;
+    }
+
+
+    // 숫자가 아닌 문자가 포함되어 있는지 확인(space bar 제외)
+    const hasNonNumericNonSpace = /[^0-9\s]/.test(codeValue)
+    if(hasNonNumericNonSpace) {
+      setCodeErr("인증번호는 6자리 숫자여야 합니다.")
+      return;
+    }
+
+    // 숫자만 추출해서 검증
+    const numericOnly = codeValue.replace(/\s/g, '')
+    if(!CodeVal(numericOnly)) {
       setCodeErr("인증번호는 6자리 숫자여야 합니다.")
       return;
     } else {
@@ -140,7 +160,7 @@ export default function FindPasswordPage() {
   }
 
   
-
+  // 비밀번호 변경 제출 이벤트
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
@@ -158,8 +178,9 @@ export default function FindPasswordPage() {
     setIsLoading(true)
 
     try {
-      // await findPassword(email, password)
-      router.push("/auth/login")
+      await API.post("/user/find-password", { email, password })
+      alert('비밀번호 변경 완료 로그인 화면으로 전환합니다')
+      router.push("/user/login")
     } catch (err) {
       setError("비밀번호 변경에 실패패했습니다. 다시 시도해주세요.")
     } finally {
@@ -176,7 +197,7 @@ export default function FindPasswordPage() {
               <Building2 className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">회원가입</CardTitle>
+          <CardTitle className="text-2xl font-bold">비밀번호 변경</CardTitle>
           <CardDescription className="text-balance">상부상조와 함께 성공적인 창업을 시작하세요</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -195,6 +216,7 @@ export default function FindPasswordPage() {
                   id="email"
                   type="email"
                   ref={emailRef}
+                  readOnly={emailReadOnly}
                   placeholder="example@email.com"
                   value={email}
                   onChange={handleEmail}
@@ -230,14 +252,14 @@ export default function FindPasswordPage() {
                   
                   <Button 
                   type="button"
-                  className="w-50 space-y-2 cursor-pointer hover:text-white transition-all duration-300"
+                  className="w-50 space-y-2 cursor-pointer hover:text-white transition-all duration-300 font-bold"
                   onClick={handleVerifyClick}
                   // disabled={isLoading}
                   >
                     인증번호 확인
-                  </Button>
-                  <div className="text-xs text-red-500">{codeErr}</div>
+                  </Button>  
                   </div>
+                  <div className="text-xs text-red-500">{codeErr}</div>
                 </div>
             
 
@@ -278,7 +300,7 @@ export default function FindPasswordPage() {
 
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full font-bold cursor-pointer hover:text-white transition-all duration-300" disabled={isLoading}>
               {isLoading ? "비밀번호 변경 중..." : "비밀번호 변경"}
             </Button>
           </CardFooter>

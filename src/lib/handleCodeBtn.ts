@@ -42,13 +42,15 @@ export const handleVerifyBtn = ({ email, code, onSuccess }: { email:string, code
             return;
         }
 
-        if(!CodeVal(code.toString())) {
+        if(!CodeVal(code.toString().trim())) {
             alert('코드 형식이 올바르지 않습니다');
             return;
         }
 
         try {
-
+            await verifyEmailCode(email, code);
+            alert('인증 코드가 일치합니다.');
+            onSuccess();
         } catch (error: any) {
             if(error.response?.data?.message === '인증 코드가 일치하지 않습니다.') {
                 alert('인증 코드가 일치하지 않습니다.');

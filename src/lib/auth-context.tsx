@@ -3,15 +3,17 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 
 interface User {
-  id: string
-  email: string
+  id?: string
+  user_id?: string
+  email?: string
   name: string
-  role: "user" | "admin"
+  nickname?: string
+  role?: string
 }
 
 interface AuthContextType {
   user: User | null
-  login: (email: string, password: string) => Promise<void>
+  login: (userData: User) => Promise<void>
   signup: (email: string, password: string, name: string) => Promise<void>
   logout: () => void
   isLoading: boolean
@@ -32,16 +34,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false)
   }, [])
 
-  const login = async (email: string, password: string) => {
-    // Mock authentication - replace with actual API call
-    const mockUser: User = {
-      id: "1",
-      email,
-      name: email.split("@")[0],
-      role: "user",
+  const login = async (userData: User) => {
+    // API에서 받은 사용자 데이터를 저장
+    const user: User = {
+      id: userData.user_id || userData.id,
+      user_id: userData.user_id,
+      email: userData.user_id || userData.email,
+      name: userData.name,
+      nickname: userData.nickname,
+      role: userData.role || "user",
     }
-    localStorage.setItem("user", JSON.stringify(mockUser))
-    setUser(mockUser)
+    localStorage.setItem("user", JSON.stringify(user))
+    setUser(user)
   }
 
   const signup = async (email: string, password: string, name: string) => {

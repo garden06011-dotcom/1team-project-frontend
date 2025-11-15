@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/src/components/ui/button"
 import { Input } from "@/src/components/ui/input"
@@ -12,14 +12,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src/components/ui/card"
 import { Badge } from "@/src/components/ui/badge"
 import { X } from "lucide-react"
+import API from "@/src/api/axiosApi"
+import { useAuth } from "@/src/lib/auth-context"
 
 export default function WritePostPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
   const [category, setCategory] = useState("")
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState("")
+  const [isLoading, setIsLoading] = useState(false);
+
+
+
+  const titleRef = useRef<HTMLInputElement>(null)
+  const contentRef = useRef<HTMLTextAreaElement>(null)
+  const categoryRef = useRef<HTMLSelectElement>(null)
+
 
   const handleAddTag = () => {
     if (tagInput.trim() && tags.length < 5 && !tags.includes(tagInput.trim())) {
@@ -32,11 +43,51 @@ export default function WritePostPage() {
     setTags(tags.filter((tag) => tag !== tagToRemove))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Here you would typically submit to an API
-    console.log("[v0] Post submitted:", { title, content, category, tags })
-    router.push("/community")
+
+    if(!title) {
+      alert('제목을 입력해주세요');
+      titleRef.current?.focus();
+      return;
+    }
+
+    if(!content) {
+      alert('내용을 입력하세요');
+      contentRef.current?.focus();
+      return;
+    }
+
+    if(!category) {
+      alert('카테고리를 입력하세요');
+      categoryRef.current?.focus();
+      return;
+    }
+
+    if(!user?.user_id) {
+      alert('로그인이 필요합니다.');
+      router.push('/user/login');
+      return;
+    }
+
+    setIsLoading(true)
+
+    try {
+      await API.post('/board/write', { 
+        title, 
+        content, 
+        category, 
+        tags: tags.length > 0 ? tags.join(',') : null, 
+        user_id: user.user_id 
+      })
+      
+      router.push('/board')
+    } catch (error:any) {
+      console.log(error);
+      alert(error.response?.data?.message || error.message);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -55,10 +106,10 @@ export default function WritePostPage() {
                   <SelectValue placeholder="카테고리를 선택하세요" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="창업후기">창업후기</SelectItem>
+                  {/* <SelectItem value="창업후기">창업후기</SelectItem> */}
                   <SelectItem value="정보공유">정보공유</SelectItem>
                   <SelectItem value="질문">질문</SelectItem>
-                  <SelectItem value="노하우">노하우</SelectItem>
+                  {/* <SelectItem value="노하우">노하우</SelectItem> */}
                   <SelectItem value="자유">자유</SelectItem>
                 </SelectContent>
               </Select>

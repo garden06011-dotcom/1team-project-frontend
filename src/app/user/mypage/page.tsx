@@ -54,11 +54,22 @@ export default function MyPagePage() {
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [profileData, setProfileData] = useState({
     name: user?.name || "",
-    email: user?.email || "",
+    email: user?.email || user?.user_id || "",
     phone: "010-1234-5678",
-    business: "소상공인",
-    bio: "안녕하세요! 상부상조를 이용하는 자영업자입니다.",
+    business: "",
+    bio: "간단히 소개글을 입력해주세요.",
   })
+  
+  // user가 변경되면 profileData 업데이트
+  useEffect(() => {
+    if (user) {
+      setProfileData(prev => ({
+        ...prev,
+        name: user.name || prev.name,
+        email: user.email || user.user_id || prev.email,
+      }))
+    }
+  }, [user])
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -165,7 +176,7 @@ export default function MyPagePage() {
 
   useEffect(() => {
     if (!isLoading && !user) {
-      router.push("/login")
+      router.push("/user/login")
     }
   }, [user, isLoading, router])
 
@@ -309,12 +320,12 @@ export default function MyPagePage() {
               </div>
               <p className="text-muted-foreground mb-5 text-lg">{user.email}</p>
               <div className="flex gap-3">
-                <Button variant="outline" size="sm" className="shadow-sm bg-background hover:bg-muted" asChild>
+                {/* <Button variant="outline" size="sm" className="shadow-sm bg-background hover:bg-muted" asChild>
                   <Link href="/settings">
                     <Settings className="mr-2 h-4 w-4" />
                     설정
                   </Link>
-                </Button>
+                </Button> */}
                 <Button variant="outline" size="sm" onClick={logout} className="shadow-sm bg-background hover:bg-muted">
                   <LogOut className="mr-2 h-4 w-4" />
                   로그아웃
@@ -348,26 +359,26 @@ export default function MyPagePage() {
         <TabsList className="grid w-full grid-cols-4 h-14 p-1 bg-muted/50">
           <TabsTrigger
             value="profile"
-            className="text-base data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="text-base data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer hover:bg-muted"
           >
             <User className="mr-2 h-4 w-4" />내 정보
           </TabsTrigger>
           <TabsTrigger
             value="favorites"
-            className="text-base data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="text-base data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer hover:bg-muted"
           >
             <Heart className="mr-2 h-4 w-4" />
             관심 지역
           </TabsTrigger>
           <TabsTrigger
             value="posts"
-            className="text-base data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="text-base data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer hover:bg-muted"
           >
             <FileText className="mr-2 h-4 w-4" />내 게시글
           </TabsTrigger>
           <TabsTrigger
             value="notifications"
-            className="text-base data-[state=active]:bg-background data-[state=active]:shadow-sm relative"
+            className="text-base data-[state=active]:bg-background data-[state=active]:shadow-sm relative cursor-pointer hover:bg-muted"
           >
             <Bell className="mr-2 h-4 w-4" />
             알림

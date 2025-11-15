@@ -14,27 +14,34 @@ import { Checkbox } from "@/src/components/ui/checkbox"
 import { Building2, Mail, Lock, User } from "lucide-react";
 import { EmailVal, CodeVal, PasswordVal, NameVal, NicknameVal } from "@/src/lib/validation";
 import { handleEmailBtn, handleVerifyBtn } from "@/src/lib/handleCodeBtn";
+import API from "@/src/api/axiosApi"
+
+import AgreementPageModal from "../agreementModal/page"
 
 export default function SignupPage() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [name, setName] = useState("")
-  const [nickname, setNickname] = useState("")
-  const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [email, setEmail] = useState<string>("")
+  const [password, setPassword] = useState<string>("")
+  const [confirmPassword, setConfirmPassword] = useState<string>("")
+  const [name, setName] = useState<string>("")
+  const [nickname, setNickname] = useState<string>("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false);
   const [birth, setBirth] = useState("")  // YYYYMMDD
-  const [genderDigit, setGenderDigit] = useState<string>(""); // "1" | "2" | "3" | "4"
-  const [birthErr, setBirthErr] = useState<string>("");
-  const [genderErr, setGenderErr] = useState<string>("");
+  const [genderDigit, setGenderDigit] = useState(""); // "1" | "2" | "3" | "4"
+
+
+
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [isAgreementModalOpen, setIsAgreementModalOpen] = useState(false); // ✅ 모달 열림 여부
+  
+  const [terms, setTerms] = useState(false)
 
   const genderInputRef = useRef<HTMLInputElement>(null);
 
   const [showCodeBox, setShowCodeBox] = useState(false);
   const [emailReadOnly, setEmailReadOnly] = useState(false);
   const [isCounting, setIsCounting] = useState(false);
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState("")
   const [showTimer, setShowTimer] = useState(false);
 
 
@@ -48,6 +55,8 @@ export default function SignupPage() {
   const [nameErr, setNameErr] = useState("")
   const [nicknameErr, setNicknameErr] = useState("")
   const [termsErr, setTermsErr] = useState("")
+  const [birthErr, setBirthErr] = useState("");
+  const [genderErr, setGenderErr] = useState("");
 
   const emailRef = useRef<HTMLInputElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
@@ -55,6 +64,8 @@ export default function SignupPage() {
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const nicknameRef = useRef<HTMLInputElement>(null);
+  const birthRef = useRef<HTMLInputElement>(null);
+  const genderDigitRef = useRef<HTMLInputElement>(null);
   const termsRef = useRef<HTMLInputElement>(null);
 
 
@@ -63,17 +74,19 @@ export default function SignupPage() {
     setShowCodeBox(true);
     setShowTimer(true);
     setShowTimer(true);
-    setEmailReadOnly(true);
+    setEmailReadOnly(false);
   }
 
-  const handleSendClick = handleEmailBtn({ email, onSuccess: handleSendSuccess });
+  const handleSendClick = handleEmailBtn({ 
+    email, onSuccess: handleSendSuccess 
+  });
   
   // 인증번호 확인 이벤트
   const handleVerifySuccess = () => {
     setShowCodeBox(false);
     setShowTimer(false);
     setShowTimer(false);
-    setEmailReadOnly(false);
+    setEmailReadOnly(true);
   }
 
   const handleTimeout = () => {
@@ -83,10 +96,10 @@ export default function SignupPage() {
   }
 
   const handleVerifyClick = handleVerifyBtn({ 
-    
-    email, 
+    email: email, 
     code: Number(code), 
-    onSuccess: handleVerifySuccess });
+    onSuccess: handleVerifySuccess 
+  });
 
 
 
@@ -113,11 +126,29 @@ export default function SignupPage() {
   const handleCode = (e: React.FormEvent) => {
     const codeValue = (e.target as HTMLInputElement).value
     setCode(codeValue)
+    
     if(!codeValue) {
       setCodeErr("")
       return;
     }
-    if(!CodeVal(codeValue)) {
+    
+    // 스페이스바만 있는 경우는 에러 메시지 표시 안 함
+    const trimmedValue = codeValue.trim()
+    if(trimmedValue === "") {
+      setCodeErr("")
+      return;
+    }
+    
+    // 숫자가 아닌 문자가 포함되어 있는지 확인 (스페이스바 제외)
+    const hasNonNumericNonSpace = /[^0-9\s]/.test(codeValue)
+    if(hasNonNumericNonSpace) {
+      setCodeErr("인증번호는 6자리 숫자여야 합니다.")
+      return;
+    }
+    
+    // 숫자만 추출해서 검증
+    const numericOnly = codeValue.replace(/\s/g, '')
+    if(!CodeVal(numericOnly)) {
       setCodeErr("인증번호는 6자리 숫자여야 합니다.")
       return;
     } else {
@@ -228,7 +259,7 @@ export default function SignupPage() {
 
     // 유효성
     if (next.length === 0) {
-      setBirthErr("생년월일(YYYYMMDD)을 입력하세요.");
+      setBirthErr("생년월일을 입력하세요.");
     } else if (next.length < 8) {
       setBirthErr("8자리로 입력하세요. 예: 19991231");
     } else if (!isValidYyyymmdd(next)) {
@@ -246,9 +277,19 @@ export default function SignupPage() {
 
   // [추가] 성별 한 자리 변경 (숫자만, 길이 1, 허용 범위 체크)
   const handleGenderDigitChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const digit = onlyDigits(e.target.value).slice(0, 1);
+    const inputValue = e.target.value;
+    const digit = onlyDigits(inputValue).slice(0, 1);
     const allow = allowedGenderDigits(birth) as string[];
-    if (digit && !allow.includes(digit)) {
+    
+    // 빈 값이면 그대로 설정
+    if (!digit) {
+      setGenderDigit("");
+      setGenderErr("");
+      return;
+    }
+    
+    // 허용 범위 체크
+    if (!allow.includes(digit)) {
       setGenderErr(
         birth && isValidYyyymmdd(birth)
           ? birth >= "20000101"
@@ -256,11 +297,14 @@ export default function SignupPage() {
             : "1999년생 이전은 1(남) 또는 2(여)만 가능합니다."
           : "생년월일을 올바르게 입력하세요."
       );
-      setGenderDigit(""); // 허용되지 않으면 비움
+      // 허용되지 않아도 입력은 유지 (사용자가 볼 수 있도록)
+      setGenderDigit(digit);
       return;
     }
+    
+    // 허용된 값이면 설정하고 에러 제거
     setGenderDigit(digit);
-    setGenderErr(digit ? "" : "한 자리를 입력하세요");
+    setGenderErr("");
   };
 
   // [참고] 전송/저장 시 가공 예시
@@ -281,31 +325,73 @@ export default function SignupPage() {
 
 
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
 
-    if (password !== confirmPassword) {
-      setError("비밀번호가 일치하지 않습니다.")
-      return
+    if(!email) {
+      alert("이메일을 입력하세요.")
+      emailRef.current?.focus();
+      return;
     }
 
-    if (!agreedToTerms) {
-      setError("이용약관에 동의해주세요.")
-      return
+    if(!password) {
+      alert('비밀번호를 입력하세요')
+      passwordRef.current?.focus();
+      return;
     }
 
-    if (password.length < 8) {
-      setError("비밀번호는 8자 이상이어야 합니다.")
-      return
+    if(!confirmPassword) {
+      alert('비밀번호 확인을 입력하세요')
+      confirmPasswordRef.current?.focus();
+      return;
     }
 
+    if(password !== confirmPassword) {
+      alert('비밀번호가 일치하지 않습니다.')
+      passwordRef.current?.focus();
+      confirmPasswordRef.current?.focus();
+      return;
+    }
+
+    if(!name) {
+      alert('이름을 입력하세요');
+      nameRef.current?.focus();
+      return;
+    }
+
+    if(!nickname) {
+      alert('닉네임을 입력하세요');
+      nicknameRef.current?.focus();
+      return;
+    }
+
+    if(!birth) {
+      alert('생년월일을 입력하세요');
+      birthRef.current?.focus();
+      return;
+    }
+
+    if(!genderDigit) {
+      alert('성별을 입력하세요');
+      genderDigitRef.current?.focus();
+      return;
+    }
+
+    if(!agreedToTerms) {
+      alert('이용약관에 동의하세요');
+      setIsAgreementModalOpen(true); // 바로 모달 띄워주기
+      return;
+    }
+
+    
     setIsLoading(true)
 
     try {
-      await signup(email, password, name)
-      router.push("/")
+  
+      await API.post("/user/signup", { email, password, name, nickname, birth, genderDigit })
+      alert('회원가입 완료 로그인 화면으로 전환합니다')
+      router.push("/user/login")
     } catch (err) {
       setError("회원가입에 실패했습니다. 다시 시도해주세요.")
     } finally {
@@ -372,31 +458,39 @@ export default function SignupPage() {
               onClick={handleSendClick}>
               {emailReadOnly ? "인증번호 재전송" : "인증번호 전송"}
             </Button>
-                <div className="space-y-2">
-                <Label htmlFor="email-code">인증번호</Label>
-                  <div className="relative flex items-center gap-2 justify-between">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email-code"
-                      type="code"
-                      ref={codeRef}
-                      value={code}
-                      onChange={handleCode}
-                      className="pl-10 w-50"
-                      placeholder="******"
-                    />
-                    
-                    <Button 
-                      type="button"
-                      className="w-50 space-y-2 cursor-pointer hover:text-white transition-all duration-300"
-                      onClick={handleVerifyClick}
-                    // disabled={isLoading}
-                    >
-                      인증번호 확인
-                    </Button>
-                    <div className="text-xs text-red-500">{codeErr}</div>
+
+
+            {
+              showCodeBox && (
+                  <div className="space-y-2">
+                    <Label htmlFor="email-code">인증번호</Label>
+                      <div className="relative flex items-center gap-1 justify-between">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="email-code"
+                          type="code"
+                          ref={codeRef}
+                          value={code}
+                          onChange={handleCode}
+                          className="pl-10 w-50"
+                          placeholder="******"
+                        />
+                        
+                        <Button 
+                          type="button"
+                          className="w-50 space-y-2 cursor-pointer hover:text-white transition-all duration-300"
+                          onClick={handleVerifyClick}
+                        // disabled={isLoading}
+                        >
+                          인증번호 확인
+                        </Button>
+                        
+                      </div>
+                      <div className="text-xs text-red-500">{codeErr}</div>
                   </div>
-                </div>
+              )
+            }
+                
             
 
             <div className="space-y-2">
@@ -435,11 +529,14 @@ export default function SignupPage() {
             </div>
 
 
-          <div className="space-y-3 w-full gap-8 flex items-center">
-            {/* 생년월일 및 성별 */}
-            <div className="space-y-2">
-              <Label htmlFor="birth">주민등록번호</Label>
-              <div className="relative">
+          {/* ✅ 주민등록번호 (생년월일 + 성별을 한 그룹으로) */}
+          <div className="space-y-2">
+            <Label htmlFor="birth">주민등록번호</Label>
+
+            {/* 위 줄: 입력 영역 한 줄 */}
+            <div className="flex items-center gap-1">
+              {/* 생년월일 */}
+              <div className="relative flex-1">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="birth"
@@ -447,46 +544,39 @@ export default function SignupPage() {
                   inputMode="numeric"
                   placeholder="예: 20010415"
                   value={birth}
-                  // ref={handleBirthChange}
                   onChange={handleBirthChange}
                   maxLength={8}
-                  className="pl-10 w-50"
+                  className="pl-10"
                   required
                 />
               </div>
-              <div className="text-xs text-red-500">{nicknameErr}</div>
-            </div>
-            <div className="text-lg pt-2">-</div>
-              {/* [성별 한 자리] */}
-              <div className="flex flex-col">
-                <div className="space-y-2">
-                    <Label htmlFor="genderDigit">성별 코드 (한 자리)</Label>
-                    <div className="flex items-center gap-2">
-                    
-                    <div className="flex items-center gap-2">
-                      <div className="relative w-10 mb-2">
-                        <Input
-                          id="genderDigit"
-                          ref={genderInputRef}
-                          type="text"
-                          inputMode="numeric"
-                          // placeholder="1~4"
-                          value={genderDigit}
-                          onChange={handleGenderDigitChange}
-                          maxLength={1}
-                          className="text-center"
-                          required
-                        />
-                        </div>
-                    </div>
-                    
-                      <div className="text-lg">******</div>
-                    </div>
 
+              <div className="text-lg px-1">-</div>
+
+              {/* 성별 한 자리 + ****** */}
+              <div className="flex items-center gap-2 flex-1">
+                <div className="relative w-10">
+                  <Input
+                    id="genderDigit"
+                    ref={genderInputRef}
+                    type="text"
+                    inputMode="numeric"
+                    value={genderDigit}
+                    onChange={handleGenderDigitChange}
+                    maxLength={1}
+                    className="text-center"
+                    required
+                  />
                 </div>
-
-                <div className="text-xs text-red-500 min-h-4">{genderErr}</div>
+                <div className="text-lg">******</div>
               </div>
+            </div>
+
+            {/* 아래 줄: 에러 메시지 (둘 다 같이) */}
+            <div className="flex justify-between text-xs text-red-500 min-h-[1rem]">
+              <span>{birthErr}</span>
+              <span>{genderErr}</span>
+            </div>
           </div>
 
             {/* 닉네임 인증 */}
@@ -513,36 +603,42 @@ export default function SignupPage() {
                 id="terms"
                 checked={agreedToTerms}
                 onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+                onClick={() => setIsAgreementModalOpen(true)}
               />
-              <label
-                htmlFor="terms"
-                className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              <button
+                type="button"
+                onClick={() => setIsAgreementModalOpen(true)}
+                className="text-sm leading-none text-left text-primary hover:underline cursor-pointer"
               >
-                <Link href="/auth/agreement" className="text-primary hover:underline">
-                  이용약관
-                </Link>{" "}
-                및{" "}
-                <Link href="/auth/agreement" className="text-primary hover:underline">
-                  개인정보처리방침
-                </Link>
-                에 동의합니다
-              </label>
+                이용약관 및 개인정보처리방침에 동의합니다
+              </button>
             </div>
 
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full cursor-pointer hover:text-white" 
+              disabled={isLoading}
+              onClick={handleSubmit}
+            >
               {isLoading ? "가입 중..." : "가입하기"}
             </Button>
             <div className="text-sm text-center text-muted-foreground">
               이미 계정이 있으신가요?{" "}
-              <Link href="/auth/login" className="text-primary font-medium hover:underline">
+              <Link href="/user/login" className="text-primary font-medium hover:underline">
                 로그인
               </Link>
             </div>
           </CardFooter>
         </form>
       </Card>
+      {/* ✅ AgreementModal 연결 */}
+      <AgreementPageModal
+        isOpen={isAgreementModalOpen}  // ✅ 모달 열림 여부
+        onClose={() => setIsAgreementModalOpen(false)}  // ✅ 모달 닫기
+        onConfirm={() => setAgreedToTerms(true)}  // ✅ 약관 동의 확인
+      />
     </div>
   )
 }

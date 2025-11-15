@@ -1,7 +1,13 @@
 "use client"
 import React, { useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
-import { CheckCircle2 } from "lucide-react"
+import { CheckCircle2, X } from "lucide-react"
+
+
+type AgreementModalProps = {
+  isOpen: boolean  // ✅ 모달 열림/닫힘
+  onClose: () => void,  // ✅ 모달 닫기
+  onConfirm: () => void,  // ✅ 약관 동의 확인
+}
 
 const TERMS = [
   {
@@ -92,9 +98,7 @@ const TERMS = [
   },
 ]
 
-const AgreementPage = () => {
-  const router = useRouter()
-
+const AgreementPageModal = ({ isOpen, onClose, onConfirm }: AgreementModalProps) => {
   const refs = useMemo(
     () => TERMS.map(() => React.createRef<HTMLDivElement>()),
     []
@@ -143,18 +147,31 @@ const AgreementPage = () => {
 
 
 
+  if (!isOpen) return null;
+
   return (
-    <div className="min-h-[calc(100vh-200px)] bg-slate-50 py-10 md:py-16">
-      <div className="max-w-3xl mx-auto px-4">
-        {/* 헤더 */}
-        <div className="text-center mb-10 md:mb-12 p-8 md:p-10 bg-white rounded-2xl shadow-md">
-          <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-3 tracking-tight">
-            서비스 이용약관 동의
-          </h2>
-          <p className="text-base md:text-lg text-slate-500 font-medium">
-            서비스 이용을 위해 아래 약관을 확인하고 동의해주세요
-          </p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col m-4">
+        {/* 모달 헤더 */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100">
+          <h2 className="text-xl font-bold text-slate-900">서비스 이용약관 동의</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-slate-600" />
+          </button>
         </div>
+
+        {/* 스크롤 가능한 콘텐츠 영역 */}
+        <div className="overflow-y-auto flex-1 bg-slate-50 p-4 md:p-6">
+          <div className="max-w-3xl mx-auto">
+            {/* 설명 */}
+            <div className="text-center mb-6 p-6 bg-white rounded-xl shadow-sm">
+              <p className="text-base md:text-lg text-slate-600 font-medium">
+                서비스 이용을 위해 아래 약관을 확인하고 동의해주세요
+              </p>
+            </div>
 
         {/* 전체 동의 섹션 */}
         <div className="bg-gradient-to-br from-slate-900 to-slate-700 rounded-2xl px-6 py-5 mb-8 shadow-2xl">
@@ -251,24 +268,37 @@ const AgreementPage = () => {
           })}
         </div>
 
-        {/* 버튼 영역 */}
-        <div className="flex justify-center pb-10">
-        <button
-          disabled={!allAgreed}
-          onClick={() => router.push("/auth/signup")}
-          className={`inline-flex items-center justify-center gap-2 px-10 py-4 rounded-xl text-base md:text-lg font-bold min-w-[220px] tracking-tight transition-all ${
-            allAgreed
-              ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg hover:-translate-y-0.5 hover:shadow-2xl"
-              : "bg-slate-200 text-slate-400 cursor-not-allowed"
-          }`}
-        >
-          <span>회원가입 계속하기</span>
-          <CheckCircle2 className="w-5 h-5" />
-        </button>
+            {/* 버튼 영역 */}
+            <div className="flex justify-center gap-4 pt-6 pb-4">
+              <button
+                onClick={onClose}
+                className="inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl text-base font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all"
+              >
+                취소
+              </button>
+              <button
+                disabled={!allAgreed}
+                onClick={() => {
+                  if (allAgreed) {
+                    onConfirm();
+                    onClose();
+                  }
+                }}
+                className={`inline-flex items-center justify-center gap-2 px-10 py-3 rounded-xl text-base font-bold min-w-[220px] tracking-tight transition-all ${
+                  allAgreed
+                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg hover:-translate-y-0.5 hover:shadow-2xl"
+                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                }`}
+              >
+                <span>동의하고 계속하기</span>
+                <CheckCircle2 className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-export default AgreementPage;
+export default AgreementPageModal;

@@ -367,7 +367,7 @@ export default function HomePage() {
                 ))}
               </div>
               <Button size="lg" className="mt-10 text-base h-12" asChild>
-                <Link href="/auth/signup">
+                <Link href="/user/signup">
                   지금 시작하기
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
@@ -423,7 +423,7 @@ export default function HomePage() {
               className="min-w-[240px] text-lg h-14 shadow-2xl hover:shadow-3xl transition-all hover:scale-105"
               asChild
             >
-              <Link href="/auth/signup">
+              <Link href="/user/signup">
                 <Sparkles className="mr-2 h-5 w-5" />
                 무료 회원가입
               </Link>
@@ -471,7 +471,7 @@ export default function HomePage() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/auth/mypage" className="hover:text-primary transition-colors">
+                  <Link href="/user/mypage" className="hover:text-primary transition-colors">
                     마이페이지
                   </Link>
                 </li>

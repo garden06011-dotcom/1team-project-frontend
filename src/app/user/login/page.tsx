@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/src/lib/auth-context"
@@ -11,6 +11,8 @@ import { Input } from "@/src/components/ui/input"
 import { Label } from "@/src/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/src/components/ui/card"
 import { Building2, Mail, Lock, Sparkles } from "lucide-react";
+import { EmailVal, PasswordVal } from "@/src/lib/validation";
+import API from "@/src/api/axiosApi";
 
 
 export default function LoginPage() {
@@ -21,16 +23,94 @@ export default function LoginPage() {
   const { login } = useAuth()
   const router = useRouter()
 
+  const [emailErr, setEmailErr] = useState("");
+  const [passwordErr, setPasswordErr] = useState("");
+
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+
+
+
+  const handleEmailCheck = (e: React.FormEvent) => {
+    const emailValue = (e.target as HTMLInputElement).value
+    setEmail(emailValue)
+    if(!emailValue) {
+      setEmailErr("이메일을 입력해주세요.")
+      return;
+    }
+
+    if(!EmailVal(emailValue)) {
+      setEmailErr("이메일 형식이 올바르지 않습니다.")
+      return;
+    } else {
+      setEmailErr("")
+    }
+  }
+
+  const handlePasswordCheck = (e: React.FormEvent) => {
+    const passwordValue = (e.target as HTMLInputElement).value
+    setPassword(passwordValue)
+    if(!passwordValue) {
+      setPasswordErr('비밀번호를 입력해주세요');
+      return;
+    }
+
+    if(!PasswordVal(passwordValue)) {
+      setPasswordErr("비밀번호는 8자리 이상 입력해주세요.")
+      return;
+    } else {
+      setPasswordErr("")
+    }
+  }
+
+
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setIsLoading(true)
 
+    if(!email) {
+      alert('이메일을 적어주세요')
+      emailRef.current?.focus();
+      return;
+    }
+
+    if(!EmailVal(email)) {
+      alert('이메일 형식이 올바르지 않습니다.');
+      emailRef.current?.focus();
+      return;
+    }
+
+
+    if(!password) {
+      alert('비밀번호를 적어주세요');
+      passwordRef.current?.focus();
+      return;
+    }
+
+    if(!PasswordVal(password)) {
+      alert('비밀번호는 8자리 이상 입력해주세요.');
+      passwordRef.current?.focus();
+      return;
+    }
+
     try {
-      await login(email, password)
-      router.push("/auth/mypage")
-    } catch (err) {
-      setError("로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.")
+      const response = await API.post(
+        "/user/login", 
+        { 
+          email, password 
+        })
+      if(response.status === 200) {
+        const userData = response.data.user;
+        await login(userData);
+        router.push("/user/mypage");
+      } else {
+        setError(response.data.message);
+        passwordRef.current?.focus();
+      }
+    } catch (err:any) {
+      setError(err.response?.data?.message || "로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.")
     } finally {
       setIsLoading(false)
     }
@@ -41,8 +121,15 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      await login("demo@sangbusangjo.com", "demo1234")
-      router.push("/mypage")
+      const response = await API.post("/user/login", {
+        email: "demo@sangbusangjo.com",
+        password: "demo1234"
+      })
+      if(response.status === 200) {
+        const userData = response.data.user;
+        await login(userData);
+        router.push("/user/mypage")
+      }
     } catch (err) {
       setError("데모 로그인에 실패했습니다.")
     } finally {
@@ -90,10 +177,11 @@ export default function LoginPage() {
                   type="email"
                   placeholder="example@email.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleEmailCheck}
                   className="pl-10 h-11"
                   required
                 />
+                <div className="text-sm text-red-500">{emailErr}</div>
               </div>
             </div>
             <div className="space-y-2">
@@ -105,17 +193,18 @@ export default function LoginPage() {
                   type="password"
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handlePasswordCheck}
                   className="pl-10 h-11"
                   required
                 />
+                <div className="text-sm text-red-500">{passwordErr}</div>
               </div>
             </div>
             <div className="flex items-center justify-between text-sm">
               {/* <Link href="/auth/findPassword"  */}
               <div
                 className="text-red-300 hover:underline hover:text-red-500 transition-all duration-300 cursor-pointer m-1"
-                onClick={() => router.push("/auth/findPassword")}
+                onClick={() => router.push("/user/findPassword")}
               >
                 비밀번호를 잊으셨나요?
                 </div>
@@ -123,7 +212,12 @@ export default function LoginPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full h-11 shadow-md" disabled={isLoading}>
+            <Button 
+            type="submit" 
+            className="w-full h-11 shadow-md cursor-pointer hover:text-white transition-all duration-300 font-bold" 
+            disabled={isLoading}
+            onClick={handleSubmit}
+            >
               {isLoading ? "로그인 중..." : "로그인"}
             </Button>
             <div className="flex items-center justify-between text-sm text-muted-foreground gap-4">
@@ -131,7 +225,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 className="text-primary font-medium hover:underline cursor-pointer hover:text-green-500 transition-all duration-300"
-                onClick={() => router.push("/auth/agreement")}
+                onClick={() => router.push("/user/signup")}
               >
                 회원가입
               </button>

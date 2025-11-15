@@ -9,7 +9,7 @@ import { RankingsSidebar } from "./rankings-sidebar"
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isAuthPage = pathname === "/login" || pathname === "/signup"
+  const isAuthPage = pathname === "/user/login" || pathname === "/user/signup"
   const isMapPage = pathname === "/map"
 
   return (

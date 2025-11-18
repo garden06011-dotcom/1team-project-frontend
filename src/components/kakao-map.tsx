@@ -71,9 +71,12 @@ interface LocationRecommendation {
 
 interface KakaoMapProps {
   selectedLocation?: LocationRecommendation | null
+  selectedDong?: string | null
+  // top3Spots?: { rank: number; lat: number; lng: number; name: string }[]
 }
 
-export function KakaoMap({ selectedLocation }: KakaoMapProps) {
+export function KakaoMap({ selectedDong}: KakaoMapProps) {
+  
   const mapRef = useRef<HTMLDivElement>(null)
   const [map, setMap] = useState<any>(null)
   const [selectedMarker, setSelectedMarker] = useState<MarkerData | null>(null)
@@ -83,32 +86,93 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
   const [isFavorite, setIsFavorite] = useState(false)
   const [isDemoMode, setIsDemoMode] = useState(false)
   const [hasApiKey, setHasApiKey] = useState(false)
+  const [markers, setMarkers] = useState<any[]>([]);
+  const [markerList, setMarkerList] = useState<MarkerData[]>([]);
 
+  
+
+  // 동별 중심좌표 (테스트용)
+  const dongCenters: Record<string, { lat: number; lng: number }> = {
+    "역삼동": { lat: 37.5000, lng: 127.0364 },
+    "삼성동": { lat: 37.5146, lng: 127.0494 },
+    "논현동": { lat: 37.5111, lng: 127.0216 },
+    "합정동": { lat: 37.5495, lng: 126.9139 },
+    "망원동": { lat: 37.5560, lng: 126.9100 },
+    "연남동": { lat: 37.5640, lng: 126.9220 },
+    "서교동": { lat: 37.5560, lng: 126.9238 },
+  }
+
+  // 동별 중심좌표에 따른 지도 중심 이동 (테스트용)
   useEffect(() => {
-    if (selectedLocation) {
-      setSelectedMarker({
-        lat: selectedLocation.lat,
-        lng: selectedLocation.lng,
-        name: selectedLocation.name,
-        address: selectedLocation.address,
-      })
+    console.log("selectedDong:", selectedDong)
+    if(map && selectedDong) {
+      const center = dongCenters[selectedDong]
+      console.log("동별 중심좌표:", center);
 
-      setAnalysisData({
-        busStops: 12,
-        parkingLots: 8,
-        pedestrians: "35.2만명/일",
-        revenue: "425만원/월",
-        competitors: 18,
-        category: "음식점",
-      })
+    if(center) {
+      const {kakao} = window;
+      map.setCenter(new kakao.maps.LatLng(center.lat, center.lng))
+      map.setLevel(3);
+    }}
+  }, [map, selectedDong])
 
-      if (map) {
-        const { kakao } = window
-        const moveLatLon = new kakao.maps.LatLng(selectedLocation.lat, selectedLocation.lng)
-        map.setCenter(moveLatLon)
-      }
-    }
-  }, [selectedLocation, map])
+  // 추천 1~3위 스팟 표시 (테스트용)
+// useEffect(() => {
+//   if (!map || !top3Spots || top3Spots.length === 0) return;
+
+//   const { kakao } = window;
+//   const bounds = new kakao.maps.LatLngBounds();
+
+//   top3Spots.forEach((spot) => {
+//     const position = new kakao.maps.LatLng(spot.lat, spot.lng);
+
+//     // 번호 마커 이미지 (1, 2, 3)
+//     const markerImage = new kakao.maps.MarkerImage(
+//       `${window.location.origin}/marker_number_blue_${spot.rank}.png`,
+//       new kakao.maps.Size(36, 37)
+//     );
+    
+
+//     new kakao.maps.Marker({
+//       position,
+//       map,
+//       title: spot.name,
+//       image: markerImage,
+//     });
+
+//     bounds.extend(position);
+//   });
+
+  // 추천 3개가 한 화면에 보이도록 조정
+//   map.setBounds(bounds);
+// }, [map, top3Spots]);
+
+
+//   useEffect(() => {
+//     if (selectedLocation) {
+//       setSelectedMarker({
+//         lat: selectedLocation.lat,
+//         lng: selectedLocation.lng,
+//         name: selectedLocation.name,
+//         address: selectedLocation.address,
+//       })
+
+//       setAnalysisData({
+//         busStops: 12,
+//         parkingLots: 8,
+//         pedestrians: "35.2만명/일",
+//         revenue: "425만원/월",
+//         competitors: 18,
+//         category: "음식점",
+//       })
+
+//       if (map) {
+//         const { kakao } = window
+//         const moveLatLon = new kakao.maps.LatLng(selectedLocation.lat, selectedLocation.lng)
+//         map.setCenter(moveLatLon)
+//       }
+//     }
+//   }, [selectedLocation, map])
 
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY
@@ -122,6 +186,7 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
     }
   }, [])
 
+  
   const showDemoData = () => {
     setSelectedMarker({
       lat: 37.566535,
@@ -140,17 +205,24 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
     })
   }
 
+  // 지도 초기화 및 선택 위치에 따른 결과값 핀 찍기
   useEffect(() => {
-    if (isScriptLoaded && mapRef.current && !map && hasApiKey) {
-      const { kakao } = window
+    if (!isScriptLoaded || !mapRef.current) return;
 
-      const mapOption = {
-        center: new kakao.maps.LatLng(37.566535, 126.9779692), // 서울시청
-        level: 3,
-      }
+  if (!window.kakao || !window.kakao.maps) {
+    console.warn("🚨 Kakao API가 아직 로드되지 않았습니다. 100ms 후 재시도합니다.");
+    setTimeout(() => setIsScriptLoaded(prev => !prev), 100);
+    return;
+  }
 
-      const createdMap = new kakao.maps.Map(mapRef.current, mapOption)
-      setMap(createdMap)
+  if (map) return;
+
+  const { kakao } = window;
+  const createdMap = new kakao.maps.Map(mapRef.current, {
+    center: new kakao.maps.LatLng(37.566535, 126.9779692),
+    level: 3,
+  });
+  setMap(createdMap);
 
       // Click event to add marker
       kakao.maps.event.addListener(createdMap, "click", (mouseEvent: any) => {
@@ -162,19 +234,44 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
           map: createdMap,
         })
 
+          // 마커 5개 이상일 경우 → 가장 오래된 마커 삭제
+        setMarkers((prevMarkers) => {
+          if (prevMarkers.length >= 5) {
+            prevMarkers[0].setMap(null); // 지도에서 제거
+            return [...prevMarkers.slice(1), marker]; // 최신 마커 추가
+          }
+          return [...prevMarkers, marker];
+        });
+
         // Get address from coordinates
         const geocoder = new kakao.maps.services.Geocoder()
         geocoder.coord2Address(latlng.getLng(), latlng.getLat(), (result: any, status: any) => {
           if (status === kakao.maps.services.Status.OK) {
             const address = result[0].address.address_name
+            const roadName = result[0].road_address?.building_name || address
+
+            console.log("📍 선택한 위치:", {
+              lat: latlng.getLat(),
+              lng: latlng.getLng(),
+              address,
+              roadName,
+            })
+
+            // 오른쪽에 리스트 저장
+            setMarkerList((prevList) => {
+              if (prevList.length >= 5) {
+                return [...prevList.slice(1), { lat: latlng.getLat(), lng: latlng.getLng(), name: roadName, address }];
+              }
+              return [...prevList, { lat: latlng.getLat(), lng: latlng.getLng(), name: roadName, address }];
+            });
 
             setSelectedMarker({
               lat: latlng.getLat(),
               lng: latlng.getLng(),
-              name: "선택한 위치",
+              name: roadName,
               address: address,
             })
-
+            
             // Mock analysis data - replace with actual API calls
             setAnalysisData({
               busStops: Math.floor(Math.random() * 10) + 5,
@@ -190,8 +287,8 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
           }
         })
       })
-    }
-  }, [isScriptLoaded, map, hasApiKey])
+    
+  }, [isScriptLoaded, mapRef])
 
   const searchNearbyPlaces = (mapInstance: any, position: any) => {
     const { kakao } = window
@@ -202,16 +299,26 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
       "버스정류장",
       (data: any, status: any) => {
         if (status === kakao.maps.services.Status.OK) {
-          data.slice(0, 5).forEach((place: any) => {
+          data.slice(0, 3).forEach((place: any, index: number) => {
+            const rank = index + 1; // index 1, 2, 3 ... 을 자동으로 부여
+            const {kakao} = window;
+            const markerImgUrl = `${window.location.origin}/marker_number_blue_${rank}.png`;
+
+            console.log("마커이미지:", `/marker_number_blue_${rank}.png`)
+
             const placePosition = new kakao.maps.LatLng(place.y, place.x)
+
+            
+            const markerImg = new kakao.maps.MarkerImage(
+              markerImgUrl,
+              new kakao.maps.Size(36, 37)
+            );
+
             const marker = new kakao.maps.Marker({
               position: placePosition,
               map: mapInstance,
-              image: new kakao.maps.MarkerImage(
-                "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_number_blue.png",
-                new kakao.maps.Size(36, 37),
-              ),
-            })
+              // image: markerImg,
+            });
           })
         }
       },
@@ -227,6 +334,9 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
 
     const { kakao } = window
     const ps = new kakao.maps.services.Places()
+
+    markers.forEach(m => m.setMap(null));
+    setMarkers([]);
 
     ps.keywordSearch(searchKeyword, (data: any, status: any) => {
       if (status === kakao.maps.services.Status.OK) {
@@ -365,122 +475,15 @@ export function KakaoMap({ selectedLocation }: KakaoMapProps) {
                   </TabsList>
 
                   <TabsContent value="scores" className="space-y-4 mt-4">
-                    {selectedLocation && (
-                      <>
-                        {/* Total Score */}
-                        <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20">
-                          <CardContent className="p-6 text-center">
-                            <div className="flex items-center justify-center gap-2 mb-2">
-                              <Target className="h-5 w-5 text-primary" />
-                              <h4 className="font-semibold">종합 적합도</h4>
-                            </div>
-                            <div className="text-5xl font-bold text-primary mb-2">{selectedLocation.totalScore}</div>
-                            <p className="text-sm text-muted-foreground">
-                              이 지역은 카페 창업에 {selectedLocation.totalScore}점입니다
-                            </p>
-                          </CardContent>
-                        </Card>
+                  {selectedMarker && analysisData && (
+  <>
+    <div className="text-5xl font-bold text-primary mb-2">
+      {Math.floor(Math.random() * 20) + 70} {/* 70~90 사이 랜덤 점수 */}
+    </div>
+    <p className="text-sm">{selectedMarker.address} 기준 분석 결과입니다.</p>
+  </>
+)}
 
-                        {/* Individual Scores */}
-                        <div>
-                          <h4 className="font-semibold mb-3">항목별 분석</h4>
-                          <div className="space-y-4">
-                            {/* Traffic Score */}
-                            {/* <Card>
-                              <CardContent className="p-4">
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex items-center gap-2">
-                                    <Users className="h-5 w-5 text-primary" />
-                                    <span className="font-medium">입지</span>
-                                  </div>
-                                  <Badge variant="secondary" className="text-base font-semibold">
-                                    {selectedLocation.scores.traffic}점
-                                  </Badge>
-                                </div>
-                                <Progress value={selectedLocation.scores.traffic} className="h-3 mb-2" />
-                                <p className="text-sm text-muted-foreground">
-                                  지하철역 도보 2분 거리로 교통 접근성이 우수하며 유동인구가 매우 높습니다
-                                </p>
-                              </CardContent>
-                            </Card> */}
-
-                            {/* Rent Score */}
-                            <Card>
-                              <CardContent className="p-4">
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex items-center gap-2">
-                                    <TrendingUp className="h-5 w-5 text-secondary" />
-                                    <span className="font-medium">유동인구</span>
-                                  </div>
-                                  <Badge variant="secondary" className="text-base font-semibold">
-                                    {selectedLocation.scores.rent}점
-                                  </Badge>
-                                </div>
-                                <Progress value={selectedLocation.scores.rent} className="h-3 mb-2" />
-                                <p className="text-sm text-muted-foreground">
-                                  평일 평균 31,000명의 유동인구로 충분한 잠재고객 확보가 가능합니다
-                                </p>
-                              </CardContent>
-                            </Card>
-
-                            {/* Competitors Score */}
-                            <Card>
-                              <CardContent className="p-4">
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex items-center gap-2">
-                                    <Store className="h-5 w-5 text-accent" />
-                                    <span className="font-medium">임대료</span>
-                                  </div>
-                                  <Badge variant="secondary" className="text-base font-semibold">
-                                    {selectedLocation.scores.competitors}점
-                                  </Badge>
-                                </div>
-                                <Progress value={selectedLocation.scores.competitors} className="h-3 mb-2" />
-                                <p className="text-sm text-muted-foreground">
-                                  인근 대비 저렴한 월세 조건으로 수익률이 높으며 장기 투자에 유리합니다
-                                </p>
-                              </CardContent>
-                            </Card>
-
-                            {/* Location Score */}
-                            <Card>
-                              <CardContent className="p-4">
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex items-center gap-2">
-                                    <MapPin className="h-5 w-5 text-primary" />
-                                    <span className="font-medium">경쟁업체</span>
-                                  </div>
-                                  <Badge variant="secondary" className="text-base font-semibold">
-                                    {selectedLocation.scores.location}점
-                                  </Badge>
-                                </div>
-                                <Progress value={selectedLocation.scores.location} className="h-3 mb-2" />
-                                <p className="text-sm text-muted-foreground">
-                                  동종 업종이 많아 활성화된 상권이지만 차별화 전략이 필요합니다
-                                </p>
-                              </CardContent>
-                            </Card>
-                          </div>
-                        </div>
-
-                        {/* AI Recommendation */}
-                        <Card className="bg-gradient-to-br from-accent/10 to-secondary/10 border-accent/20">
-                          <CardContent className="p-4">
-                            <div className="flex items-start gap-3">
-                              <div className="p-2 bg-accent/20 rounded-lg">
-                                <BarChart3 className="h-5 w-5 text-accent" />
-                              </div>
-                              <div>
-                                <h4 className="font-semibold mb-2">AI 종합 분석</h4>
-                                <p className="text-sm text-muted-foreground leading-relaxed">
-                                  {selectedLocation.description}
-                                </p>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </>
-                    )}
                   </TabsContent>
 
                   <TabsContent value="overview" className="space-y-3 mt-4">

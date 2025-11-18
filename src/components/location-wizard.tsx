@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src
 import { Button } from "@/src/components/ui/button"
 import { Progress } from "@/src/components/ui/progress"
 import { Input } from "@/src/components/ui/input" 
+import API from "@/src/api/axiosApi"
+
 import {
   Coffee,
   Utensils,
@@ -66,7 +68,7 @@ const analysisTypes = [
 ]
 
 interface LocationWizardProps {
-  onComplete: (recommendations: LocationRecommendation[]) => void
+  onComplete: (dongList: string[]) => void
   onClose: () => void
 }
 
@@ -132,41 +134,35 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
   const [step, setStep] = useState(1)
   const [selections, setSelections] = useState({
     businessType: "",
-    city: "",
-    district: "",
+    cities:[] as string[], 
+    districts: [] as string[],
+    neighborhoods: "" as string,
     budget: 0,
     analysisType: "",
   })
 
   const [selectedCity, setSelectedCity] = useState("")
   const [selectedDistrict, setSelectedDistrict] = useState("")
-  const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState("")
 
   const toggleNeighborhood = (neighborhood: string) => {
-    if (selectedNeighborhoods.includes(neighborhood)) {
-      setSelectedNeighborhoods(selectedNeighborhoods.filter((n) => n !== neighborhood))
-    } else if (selectedNeighborhoods.length < 10) {
-      setSelectedNeighborhoods([...selectedNeighborhoods, neighborhood])
-    }
-  }
-
-  const removeNeighborhood = (neighborhood: string) => {
-    setSelectedNeighborhoods(selectedNeighborhoods.filter((n) => n !== neighborhood))
+    setSelectedNeighborhood(neighborhood) 
   }
 
   const resetLocationSelection = () => {
     setSelectedCity("")
     setSelectedDistrict("")
-    setSelectedNeighborhoods([])
+    setSelectedNeighborhood("") 
   }
 
   const applyLocationSelection = () => {
-    if (selectedNeighborhoods.length > 0) {
+    if (selectedNeighborhood) {
       setSelections({
         ...selections,
-        city: selectedCity,
-        district: selectedDistrict,
+        cities: [selectedCity],
+        districts: [selectedDistrict],
+        neighborhoods: selectedNeighborhood, // 단일값만 저장
       })
       setStep(4)
     }
@@ -228,8 +224,9 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
 
   const handleNext = () => {
     if (step === 4) {
-      const recommendations = generateRecommendations()
-      onComplete(recommendations)
+      saveSelectionDB()
+      onComplete([selectedNeighborhood])
+    
     } else {
       setStep(step + 1)
     }
@@ -250,7 +247,7 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
       case 2:
         return selections.budget > 0
       case 3:
-        return selectedNeighborhoods.length > 0
+        return selectedNeighborhood !== ""
       case 4:
         return selections.analysisType !== ""
       default:
@@ -258,6 +255,29 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
     }
   }
 
+  // 원하는 조건값들 db에 저장 (값 한번에 전달)
+  const saveSelectionDB = async () => {
+    console.log("📡 API baseURL:", API.defaults.baseURL);
+    console.log("저장할 데이터:", selections);
+  
+    try {
+      console.log("여기까진 왔니")
+      await API.post("/api/map/save", {
+        user_id: 'tester1@gmail.com',
+        category: selections.businessType,
+        rent_range: selections.budget,
+        region_city: selections.cities[0],              
+        region_district: selections.districts[0],
+        region_subdistrict: selections.neighborhoods,
+      })
+      
+      console.log("저장 데이터 확인: ", selections)
+      console.log("저장 성공");
+    } catch (error: any) {
+      console.error("저장 실패:", error.response?.data || error);
+    }
+  };
+  
   const cities = Object.keys(locationData)
   const districts = selectedCity ? Object.keys(locationData[selectedCity as keyof typeof locationData]) : []
   const neighborhoods =
@@ -307,7 +327,12 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
                   return (
                     <button
                       key={type.id}
-                      onClick={() => setSelections({ ...selections, businessType: type.id })}
+                      onClick={() => {
+                        console.log("type.id:", type.id)
+                        setSelections(prev => ({ ...prev, businessType: type.id}))
+                        console.log("selections.businessType:", selections.businessType)
+                      }}
+                        
                       className={`p-4 rounded-lg border-2 transition-all hover:border-primary/50 ${
                         isSelected ? "border-primary bg-primary/5" : "border-border bg-background"
                       }`}
@@ -428,7 +453,7 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
         {/* Districts Column */}
         <div className="border-r overflow-y-auto">
           {/* ✅ 구 전체 선택 시 → 시 기준 추가 */}
-          <button
+          {/* <button
             onClick={() => {
               if (selectedCity) {
                 if (!selectedNeighborhoods.includes(selectedCity)) {
@@ -440,7 +465,7 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
             className="w-full p-3 text-left text-sm hover:bg-muted/50 transition-colors"
           >
             전체
-          </button>
+          </button> */}
 
           {districts.map((district) => (
             <button
@@ -463,7 +488,7 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
           {selectedDistrict ? (
             <>
               {/* ✅ 동 전체 선택 → 구 기준 추가 */}
-              <button
+              {/* <button
                 onClick={() => {
                   if (!selectedNeighborhoods.includes(selectedDistrict)) {
                     setSelectedNeighborhoods((prev) => [...prev, selectedDistrict])
@@ -477,23 +502,24 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
                 }`}
               >
                 <span>전체</span>
-              </button>
+              </button> */}
 
-              {neighborhoods.map((neighborhood) => {
-                const isSelected = selectedNeighborhoods.includes(neighborhood)
-                return (
-                  <button
-                    key={neighborhood}
-                    onClick={() => toggleNeighborhood(neighborhood)}
-                    className={`w-full p-3 text-left text-sm hover:bg-muted/50 transition-colors flex items-center justify-between ${
-                      isSelected ? "bg-primary/10 text-primary" : ""
-                    }`}
-                  >
-                    <span>{neighborhood}</span>
-                    {isSelected && <CheckCircle2 className="h-4 w-4" />}
-                  </button>
-                )
-              })}
+            {neighborhoods.map((neighborhood) => {
+              const isSelected = selectedNeighborhood === neighborhood
+              return (
+                <button
+                  key={neighborhood}
+                  onClick={() => toggleNeighborhood(neighborhood)}
+                  className={`w-full p-3 text-left text-sm hover:bg-muted/50 transition-colors flex items-center justify-between ${
+                    isSelected ? "bg-primary/10 text-primary font-medium" : ""
+                  }`}
+                >
+                  <span>{neighborhood}</span>
+                  {isSelected && <CheckCircle2 className="h-4 w-4" />}
+                </button>
+              )
+            })}
+
             </>
           ) : (
             <div className="p-8 text-center text-sm text-muted-foreground">
@@ -504,27 +530,23 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
       </div>
     </div>
 
-    {/* ✅ 선택된 지역 표시 */}
-    {selectedNeighborhoods.length > 0 && (
+    {selectedNeighborhood && (
       <div className="space-y-2">
         <div className="text-sm">
-          <span className="text-primary font-medium">최대 10개</span>까지 선택할 수 있어요.
+          <span className="text-primary font-medium">1개만 선택할 수 있어요.</span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {selectedNeighborhoods.map((neighborhood) => (
-            <Badge key={neighborhood} variant="secondary" className="pr-1">
-              {neighborhood}
-              <button
-                onClick={() => removeNeighborhood(neighborhood)}
-                className="ml-1 hover:bg-muted rounded-full p-0.5"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
+        <Badge>
+          {selectedNeighborhood}
+          <button
+            onClick={() => setSelectedNeighborhood("")}
+            className="ml-1 hover:bg-muted rounded-full p-0.5"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </Badge>
       </div>
     )}
+
 
     {/* ✅ Action Buttons — 이전 + 적용하기 (통일된 디자인) */}
     <div className="flex gap-3 pt-4 border-t">
@@ -538,10 +560,10 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
       </Button>
       <Button
         onClick={applyLocationSelection}
-        disabled={selectedNeighborhoods.length === 0}
+        disabled={!selectedNeighborhood}
         className="flex-1"
       >
-        {selectedNeighborhoods.length}개 지역 적용하기
+       {selectedNeighborhood ? `${selectedNeighborhood} 적용하기` : "지역 선택"}
         <ArrowRight className="h-4 w-4 ml-2" />
       </Button>
     </div>

@@ -1,37 +1,140 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/src/components/ui/button"
 import { Input } from "@/src/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/src/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/src/components/ui/tabs"
 import { PostCard } from "@/src/components/post-card"
-import { mockPosts } from "@/src/lib/community-data"
 import { PenSquare, Search, TrendingUp, Clock, Heart } from "lucide-react"
+import API from "@/src/api/axiosApi"
+
+type BoardPost = {
+  idx: number
+  id?: number
+  title: string,
+  content: string,
+  category: string | null
+  tags: string | null
+  views: number
+  likes: number
+  comments_count: number
+  created_at: string
+  users: {
+    nickname: string | null
+    user_id: string | null
+    idx: number | null
+  } | null
+}
 
 export default function CommunityPage() {
   const [searchQuery, setSearchQuery] = useState("")
-  const [sortBy, setSortBy] = useState("latest")
+  const [sortBy, setSortBy] = useState<"latest" | "popular" | "likes">("latest")
   const [selectedCategory, setSelectedCategory] = useState("all")
+  const [posts, setPosts] = useState<BoardPost[]>([])
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
+  const POSTS_PER_PAGE = 5
   const categories = ["전체", "정보공유", "질문", "자유"]
 
-  const filteredPosts = mockPosts
-    .filter((post) => {
-      const matchesSearch =
-        post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.content.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesCategory =
-        selectedCategory === "all" || selectedCategory === "전체" || post.category === selectedCategory
-      return matchesSearch && matchesCategory
-    })
-    .sort((a, b) => {
-      if (sortBy === "latest") return b.createdAt.getTime() - a.createdAt.getTime()
-      if (sortBy === "popular") return b.views - a.views
-      if (sortBy === "likes") return b.likes - a.likes
-      return 0
-    })
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await API.get('/board', {
+        params: {
+          page,
+          limit: POSTS_PER_PAGE,
+          sort: sortBy,
+          category: selectedCategory === "all" ? undefined : selectedCategory,
+        }
+      })
+
+      const { data = [], pagination } = response.data ?? {}
+      setPosts(Array.isArray(data) ? data : [])
+      if (pagination) {
+        if (pagination.currentPage && pagination.currentPage !== page) {
+          setPage(pagination.currentPage)
+        }
+        setTotalPages(pagination.totalPages ?? 1)
+      } else {
+        setTotalPages(1)
+      }
+
+    } catch (error) {
+      console.log(error);
+      setError("게시글을 불러오는데 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchPosts();
+  }, [page, sortBy, selectedCategory]);
+
+  const filteredPosts = useMemo(() => {
+    return posts
+      .filter((post) => {
+        const title = post.title ?? ""
+        const content = post.content ?? ""
+        const category = post.category ?? "전체"
+
+        const matchesSearch =
+          title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          content.toLowerCase().includes(searchQuery.toLowerCase())
+
+        const matchesCategory =
+          selectedCategory === "all" ||
+          selectedCategory === "전체" ||
+          category === selectedCategory
+
+        return matchesSearch && matchesCategory
+      })
+      .sort((a, b) => {
+        if (sortBy === "latest") return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+        if (sortBy === "popular") return (b.views ?? 0) - (a.views ?? 0)
+        if (sortBy === "likes") return (b.likes ?? 0) - (a.likes ?? 0)
+        return 0
+      })
+  }, [posts, searchQuery, selectedCategory, sortBy])
+
+  const handlePageChange = (nextPage: number) => {
+    if (nextPage < 1 || nextPage > totalPages || nextPage === page) return
+    setPage(nextPage)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  const handleSortChange = (value: string) => {
+    setSortBy(value as "latest" | "popular" | "likes")
+    setPage(1)
+  }
+
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value)
+    setPage(1)
+  }
+
+  // const filteredPosts = mockPosts
+  //   .filter((post) => {
+  //     const matchesSearch =
+  //       post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  //       post.content.toLowerCase().includes(searchQuery.toLowerCase())
+  //     const matchesCategory =
+  //       selectedCategory === "all" || selectedCategory === "전체" || post.category === selectedCategory
+  //     return matchesSearch && matchesCategory
+  //   })
+  //   .sort((a, b) => {
+  //     if (sortBy === "latest") return b.createdAt.getTime() - a.createdAt.getTime()
+  //     if (sortBy === "popular") return b.views - a.views
+  //     if (sortBy === "likes") return b.likes - a.likes
+  //     return 0
+  //   })
 
   return (
     <div className="container mx-auto p-4 max-w-7xl">
@@ -60,7 +163,7 @@ export default function CommunityPage() {
             className="pl-10"
           />
         </div>
-        <Select value={sortBy} onValueChange={setSortBy}>
+        <Select value={sortBy} onValueChange={handleSortChange}>
           <SelectTrigger className="w-full md:w-[180px]">
             <SelectValue placeholder="정렬" />
           </SelectTrigger>
@@ -87,8 +190,14 @@ export default function CommunityPage() {
         </Select>
       </div>
 
+      {error && (
+        <div className="mb-4 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
       {/* Category Tabs */}
-      <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="mb-6">
+      <Tabs value={selectedCategory} onValueChange={handleCategoryChange} className="mb-6">
         <TabsList className="w-full justify-start overflow-x-auto">
           {categories.map((category) => (
             <TabsTrigger key={category} value={category === "전체" ? "all" : category} className="flex-shrink-0">
@@ -101,34 +210,48 @@ export default function CommunityPage() {
       {/* Posts Grid */}
       <div className="space-y-4">
         {filteredPosts.length > 0 ? (
-          filteredPosts.map((post) => <PostCard key={post.id} post={post} />)
+          <div className="space-y-4">
+            {filteredPosts.map((post) => {
+              const postId = post.id ?? post.idx
+              if (!postId) {
+                return null
+              }
+              return (
+                <PostCard key={postId} post={{
+                  id: postId.toString(),
+                  title: post.title,
+                  content: post.content,
+                  category: post.category ?? "카테고리 미지정",
+                  tags: post.tags ? post.tags.split(',') : [],
+                  views: post.views ?? 0,
+                  likes: post.likes ?? 0,
+                  comments: post.comments_count ?? 0,
+                  createdAt: post.created_at ? new Date(post.created_at) : new Date(),
+                  author: post.users?.nickname ?? "알 수 없음",
+                  authorId: post.users?.user_id ?? post.users?.idx?.toString() ?? "",
+                }} />
+              )
+            })}
+          </div>
         ) : (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">검색 결과가 없습니다</p>
+            <p className="text-muted-foreground">게시글이 없습니다</p>
           </div>
         )}
-      </div>
-
-      {/* Pagination */}
-      {filteredPosts.length > 0 && (
-        <div className="flex justify-center gap-2 mt-8">
-          <Button variant="outline" size="sm">
-            이전
-          </Button>
-          <Button variant="default" size="sm">
-            1
-          </Button>
-          <Button variant="outline" size="sm">
-            2
-          </Button>
-          <Button variant="outline" size="sm">
-            3
-          </Button>
-          <Button variant="outline" size="sm">
-            다음
-          </Button>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-4 pt-4">
+            <Button variant="outline" disabled={page === 1 || loading} onClick={() => handlePageChange(page - 1)}>
+              이전
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {page} / {totalPages}
+            </span>
+            <Button variant="outline" disabled={page === totalPages || loading} onClick={() => handlePageChange(page + 1)}>
+              다음
+            </Button>
+          </div>
+        )}
         </div>
-      )}
     </div>
   )
 }

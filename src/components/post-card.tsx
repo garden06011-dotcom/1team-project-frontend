@@ -16,7 +16,7 @@ export function PostCard({ post }: PostCardProps) {
       <Card className="hover:shadow-md transition-shadow cursor-pointer">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-2 mb-2">
-            <Badge variant="secondary">{post.category}</Badge>
+            <Badge variant="secondary">{post.category || "카테고리 미지정"}</Badge>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Eye className="h-3.5 w-3.5" />

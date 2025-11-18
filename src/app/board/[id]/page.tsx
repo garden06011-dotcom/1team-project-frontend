@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, use } from "react"
+import { use, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/src/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card"
@@ -8,37 +8,148 @@ import { Badge } from "@/src/components/ui/badge"
 import { Textarea } from "@/src/components/ui/textarea"
 import { Separator } from "@/src/components/ui/separator"
 import { Avatar, AvatarFallback } from "@/src/components/ui/avatar"
-import { mockPosts, mockComments } from "@/src/lib/community-data"
 import { Heart, MessageSquare, Eye, Clock, ArrowLeft, Share2, Flag } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { ko } from "date-fns/locale"
+import API from "@/src/api/axiosApi"
+
+type Comment = {
+  idx: number
+  content: string | null
+  created_at: string | null
+  likes: number | null
+  users: {
+    nickname: string | null
+  } | null
+}
+
+type BoardDetail = {
+  idx: number
+  title: string | null
+  content: string | null
+  category: string | null
+  tags: string | null
+  views: number | null
+  likes: number | null
+  comments_count: number | null
+  created_at: string | null
+  users: {
+    nickname: string | null
+  } | null
+  comments?: Comment[]
+}
 
 export default function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const [isLiked, setIsLiked] = useState(false)
   const [commentText, setCommentText] = useState("")
+  const [post, setPost] = useState<BoardDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [likeLoading, setLikeLoading] = useState(false)
+  const [commentLoading, setCommentLoading] = useState(false)
 
-  const post = mockPosts.find((p) => p.id === id)
-  const postComments = mockComments.filter((c) => c.postId === id)
+  useEffect(() => {
+    const fetchPost = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const response = await API.get(`/board/${id}`)
+        setPost(response.data.data)
+      } catch (err: any) {
+        console.error(err)
+        setError(err.response?.data?.message || "게시글을 불러오지 못했습니다.")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (id) {
+      fetchPost()
+    }
+  }, [id])
+
+  const tags = useMemo(() => (post?.tags ? post.tags.split(",").map((tag) => tag.trim()).filter(Boolean) : []), [post?.tags])
+  const commentList = post?.comments ?? []
+  const authorInitial = post?.users?.nickname?.[0] ?? "U"
+
+
+
+  // 좋아요 클릭 시 좋아요 수 토글 (증가/감소)
+  const handleLikeClick = async () => {
+    // 중복 클릭 방지
+    if (likeLoading) return;
+    
+    const action = isLiked ? 'unlike' : 'like';
+    
+    try {
+      setLikeLoading(true);
+      const response = await API.post(`/board/${id}/like`, { action });
+      
+      // 백엔드에서 반환한 실제 좋아요 수를 사용
+      if (response.data?.data?.likes !== undefined) {
+        setPost((prev) => prev ? { ...prev, likes: response.data.data.likes } : null);
+        setIsLiked(!isLiked);
+        // console.log(response.data.data.likes)
+      }
+    } catch (error: any) {
+      console.error(error);
+      alert('좋아요 처리에 실패하였습니다. 다시 시도해 주세요')
+    } finally {
+      setLikeLoading(false);
+    }
+  }
+
+
+
+  // 댓글 작성 후 댓글 수 증가 및 댓글 내용 초기화 및 댓글 작성 후 댓글 리스트에 추가
+  const handleCommentSubmit = async () => {
+    // 중복 클릭 방지
+    if (commentLoading) return;
+    
+    if (commentText.trim()) {
+      setCommentLoading(true);
+      try {
+        const response = await API.post(`/board/${id}/comment`, { content: commentText })
+        if (response.data?.data) {
+          setPost((prev) => prev ? { ...prev, comments_count: (prev.comments_count ?? 0) + 1 } : null);
+          setCommentText("")
+        }
+      } catch (error: any) {
+        console.error(error);
+        alert('댓글 작성에 실패하였습니다. 다시 시도해 주세요.');
+      } finally {
+        setCommentLoading(false);
+      }
+    }
+    }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-4 max-w-4xl text-center py-12">
+        <p className="text-muted-foreground">게시글을 불러오는 중입니다...</p>
+      </div>
+    )
+  }
 
   if (!post) {
     return (
       <div className="container mx-auto p-4 max-w-4xl text-center py-12">
-        <p className="text-muted-foreground">게시글을 찾을 수 없습니다</p>
-        <Button className="mt-4" onClick={() => router.push("/community")}>
+        <p className="text-muted-foreground">{error ?? "게시글을 찾을 수 없습니다"}</p>
+        <Button className="mt-4" onClick={() => router.push("/board")}>
           커뮤니티로 돌아가기
         </Button>
       </div>
     )
   }
 
-  const handleCommentSubmit = () => {
-    if (commentText.trim()) {
-      console.log("[v0] Comment submitted:", commentText)
-      setCommentText("")
-    }
-  }
+  const createdAt = post.created_at ? new Date(post.created_at) : null
+  const commentsCount = commentList.length ?? post.comments_count ?? 0
+
+
+
+
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
@@ -52,19 +163,19 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between mb-3">
-            <Badge variant="secondary">{post.category}</Badge>
+            <Badge variant="secondary">{post.category ?? "카테고리 미지정"}</Badge>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Eye className="h-4 w-4" />
-                {post.views}
+                {post.views ?? 0}
               </span>
               <span className="flex items-center gap-1">
                 <Heart className="h-4 w-4" />
-                {post.likes}
+                {post.likes ?? 0}
               </span>
               <span className="flex items-center gap-1">
                 <MessageSquare className="h-4 w-4" />
-                {post.comments}
+                {commentsCount}
               </span>
             </div>
           </div>
@@ -72,13 +183,13 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Avatar>
-                <AvatarFallback className="bg-primary text-primary-foreground">{post.author[0]}</AvatarFallback>
+                <AvatarFallback className="bg-primary text-primary-foreground">{authorInitial}</AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-medium">{post.author}</p>
+                <p className="font-medium">{post.users?.nickname ?? "알 수 없음"}</p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Clock className="h-3 w-3" />
-                  {formatDistanceToNow(post.createdAt, { addSuffix: true, locale: ko })}
+                  {createdAt ? formatDistanceToNow(createdAt, { addSuffix: true, locale: ko }) : "방금 전"}
                 </p>
               </div>
             </div>
@@ -98,7 +209,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {post.tags.map((tag) => (
+            {tags.map((tag) => (
               <Badge key={tag} variant="outline">
                 #{tag}
               </Badge>
@@ -109,13 +220,18 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
 
           {/* Actions */}
           <div className="flex gap-3">
-            <Button variant={isLiked ? "default" : "outline"} className="flex-1" onClick={() => setIsLiked(!isLiked)}>
+            <Button 
+              variant={isLiked ? "default" : "outline"} 
+              className="flex-1" 
+              onClick={handleLikeClick}
+              disabled={likeLoading}
+            >
               <Heart className={`mr-2 h-4 w-4 ${isLiked ? "fill-current" : ""}`} />
-              좋아요 {post.likes + (isLiked ? 1 : 0)}
+              좋아요 {post.likes ?? 0}
             </Button>
             <Button variant="outline" className="flex-1 bg-transparent">
               <MessageSquare className="mr-2 h-4 w-4" />
-              댓글 {postComments.length}
+              댓글 {commentsCount}
             </Button>
           </div>
         </CardContent>
@@ -123,7 +239,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
 
       {/* Comments Section */}
       <div className="mt-6 space-y-4">
-        <h2 className="text-2xl font-bold">댓글 {postComments.length}</h2>
+        <h2 className="text-2xl font-bold">댓글 {commentsCount}</h2>
 
         {/* Write Comment */}
         <Card>
@@ -143,27 +259,31 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
         </Card>
 
         {/* Comments List */}
-        {postComments.map((comment) => (
-          <Card key={comment.id}>
+        {commentList.map((comment) => (
+          <Card key={comment.idx}>
             <CardContent className="pt-6">
               <div className="flex items-start gap-3">
                 <Avatar>
-                  <AvatarFallback className="bg-secondary">{comment.author[0]}</AvatarFallback>
+                  <AvatarFallback className="bg-secondary">
+                    {comment.users?.nickname?.[0] ?? "U"}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-2">
                     <div>
-                      <p className="font-medium">{comment.author}</p>
+                      <p className="font-medium">{comment.users?.nickname ?? "익명"}</p>
                       <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(comment.createdAt, { addSuffix: true, locale: ko })}
+                        {comment.created_at
+                          ? formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: ko })
+                          : "방금 전"}
                       </p>
                     </div>
                     <Button variant="ghost" size="sm">
                       <Heart className="h-4 w-4 mr-1" />
-                      {comment.likes}
+                      {comment.likes ?? 0}
                     </Button>
                   </div>
-                  <p className="text-sm leading-relaxed">{comment.content}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
                 </div>
               </div>
             </CardContent>

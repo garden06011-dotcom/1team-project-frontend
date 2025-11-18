@@ -46,6 +46,12 @@ export default function WritePostPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if(!category) {
+      alert('카테고리를 입력하세요');
+      categoryRef.current?.focus();
+      return;
+    }
+
     if(!title) {
       alert('제목을 입력해주세요');
       titleRef.current?.focus();
@@ -58,11 +64,7 @@ export default function WritePostPage() {
       return;
     }
 
-    if(!category) {
-      alert('카테고리를 입력하세요');
-      categoryRef.current?.focus();
-      return;
-    }
+    
 
     if(!user?.user_id) {
       alert('로그인이 필요합니다.');
@@ -177,10 +179,16 @@ export default function WritePostPage() {
             </div>
 
             <div className="flex gap-3 justify-end">
-              <Button type="button" variant="outline" onClick={() => router.back()}>
+              <Button type="button" variant="outline" className="font-bold cursor-pointer transition-all duration-300 hover:bg-green-500" onClick={() => router.back()}>
                 취소
               </Button>
-              <Button type="submit">작성완료</Button>
+              <Button 
+                type="submit"
+                // disabled={tags.length >= 5 || !tagInput.trim()}
+                disabled={isLoading || !category || !title || !content}
+                className="font-bold cursor-pointer transition-all duration-300 hover:bg-green-500 hover:text-white"
+                // className={cn(isLoading && "opacity-50 cursor-not-allowed")}
+              >작성완료</Button>
             </div>
           </form>
         </CardContent>

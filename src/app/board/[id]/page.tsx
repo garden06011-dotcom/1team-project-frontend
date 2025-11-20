@@ -12,6 +12,7 @@ import { Heart, MessageSquare, Eye, Clock, ArrowLeft, Share2, Flag } from "lucid
 import { formatDistanceToNow } from "date-fns"
 import { ko } from "date-fns/locale"
 import API from "@/src/api/axiosApi"
+import { useAuth } from "@/src/lib/auth-context"
 
 type Comment = {
   idx: number
@@ -35,6 +36,8 @@ type BoardDetail = {
   created_at: string | null
   users: {
     nickname: string | null
+    idx: number | null
+    user_id: string | null
   } | null
   comments?: Comment[]
 }
@@ -42,6 +45,7 @@ type BoardDetail = {
 export default function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const { user } = useAuth()
   const [isLiked, setIsLiked] = useState(false)
   const [commentText, setCommentText] = useState("")
   const [post, setPost] = useState<BoardDetail | null>(null)
@@ -108,17 +112,31 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     // 중복 클릭 방지
     if (commentLoading) return;
     
+    if (!user?.user_id) {
+      alert('로그인이 필요합니다.');
+      router.push('/user/login');
+      return;
+    }
+    
     if (commentText.trim()) {
       setCommentLoading(true);
       try {
-        const response = await API.post(`/board/${id}/comment`, { content: commentText })
+        const response = await API.post(`/board/${id}/comment`, { 
+          content: commentText,
+          user_id: user.user_id 
+        })
         if (response.data?.data) {
           setPost((prev) => prev ? { ...prev, comments_count: (prev.comments_count ?? 0) + 1 } : null);
           setCommentText("")
+          // 댓글 목록 새로고침
+          const updatedResponse = await API.get(`/board/${id}`)
+          if (updatedResponse.data?.data) {
+            setPost(updatedResponse.data.data)
+          }
         }
       } catch (error: any) {
         console.error(error);
-        alert('댓글 작성에 실패하였습니다. 다시 시도해 주세요.');
+        alert(error.response?.data?.message || '댓글 작성에 실패하였습니다. 다시 시도해 주세요.');
       } finally {
         setCommentLoading(false);
       }
@@ -233,6 +251,20 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
               <MessageSquare className="mr-2 h-4 w-4" />
               댓글 {commentsCount}
             </Button>
+            {user?.user_id === post?.users?.user_id && (
+              <div>
+                <Button variant="outline" 
+                className="flex-1 bg-transparent cursor-pointer" 
+                onClick={() => router.push(`/board/edit/${id}/`)}>
+                  수정하기
+                </Button>
+                <Button variant="outline" 
+                className="flex-1 bg-transparent cursor-pointer" 
+                onClick={() => router.push(`/board/delete/${id}`)}>
+                  삭제하기
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -244,17 +276,29 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
         {/* Write Comment */}
         <Card>
           <CardContent className="pt-6">
-            <Textarea
-              placeholder="댓글을 입력하세요"
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              className="mb-3"
-            />
-            <div className="flex justify-end">
-              <Button onClick={handleCommentSubmit} disabled={!commentText.trim()}>
-                댓글 작성
-              </Button>
-            </div>
+            {!user?.user_id ? (
+              <div className="text-center py-4 text-muted-foreground">
+                댓글을 작성하려면 로그인이 필요합니다.
+              </div>
+            ) : (
+              <>
+                <Textarea
+                  placeholder="댓글을 입력하세요"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  className="mb-3"
+                  disabled={commentLoading}
+                />
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={handleCommentSubmit} 
+                    disabled={!commentText.trim() || commentLoading}
+                  >
+                    {commentLoading ? "작성 중..." : "댓글 작성"}
+                  </Button>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 

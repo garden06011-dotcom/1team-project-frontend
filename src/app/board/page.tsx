@@ -110,6 +110,47 @@ export default function CommunityPage() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
+  // 페이지 번호 버튼 생성 로직
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = []
+    const maxVisible = 5 // 최대 표시할 페이지 번호 수
+    
+    if (totalPages <= maxVisible) {
+      // 전체 페이지가 적으면 모두 표시
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      // 첫 페이지
+      pages.push(1)
+      
+      if (page <= 3) {
+        // 현재 페이지가 앞쪽에 있을 때
+        for (let i = 2; i <= 4; i++) {
+          pages.push(i)
+        }
+        pages.push('...')
+        pages.push(totalPages)
+      } else if (page >= totalPages - 2) {
+        // 현재 페이지가 뒤쪽에 있을 때
+        pages.push('...')
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i)
+        }
+      } else {
+        // 현재 페이지가 중간에 있을 때
+        pages.push('...')
+        for (let i = page - 1; i <= page + 1; i++) {
+          pages.push(i)
+        }
+        pages.push('...')
+        pages.push(totalPages)
+      }
+    }
+    
+    return pages
+  }
+
   const handleSortChange = (value: string) => {
     setSortBy(value as "latest" | "popular" | "likes")
     setPage(1)
@@ -239,15 +280,66 @@ export default function CommunityPage() {
           </div>
         )}
         {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-4 pt-4">
-            <Button variant="outline" disabled={page === 1 || loading} onClick={() => handlePageChange(page - 1)}>
+          <div className="flex items-center justify-center gap-2 pt-4 flex-wrap">
+            <Button 
+              variant="outline" 
+              size="sm"
+              disabled={page === 1 || loading} 
+              onClick={() => handlePageChange(1)}
+              title="첫 페이지"
+            >
+              «
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              disabled={page === 1 || loading} 
+              onClick={() => handlePageChange(page - 1)}
+            >
               이전
             </Button>
-            <span className="text-sm text-muted-foreground">
-              {page} / {totalPages}
-            </span>
-            <Button variant="outline" disabled={page === totalPages || loading} onClick={() => handlePageChange(page + 1)}>
+            
+            {/* 페이지 번호 버튼들 */}
+            {getPageNumbers().map((pageNum, index) => {
+              if (pageNum === '...') {
+                return (
+                  <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">
+                    ...
+                  </span>
+                )
+              }
+              
+              const pageNumber = pageNum as number
+              return (
+                <Button
+                  key={pageNumber}
+                  variant={page === pageNumber ? "default" : "outline"}
+                  size="sm"
+                  disabled={loading}
+                  onClick={() => handlePageChange(pageNumber)}
+                  className="min-w-[40px]"
+                >
+                  {pageNumber}
+                </Button>
+              )
+            })}
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              disabled={page === totalPages || loading} 
+              onClick={() => handlePageChange(page + 1)}
+            >
               다음
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              disabled={page === totalPages || loading} 
+              onClick={() => handlePageChange(totalPages)}
+              title="마지막 페이지"
+            >
+              »
             </Button>
           </div>
         )}

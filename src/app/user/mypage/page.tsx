@@ -37,6 +37,7 @@ import {
 import { cn } from "@/src/lib/utils"
 import Link from "next/link"
 import { useToast } from "@/src/hooks/use-toast"
+import API from "@/src/api/axiosApi"
 
 type FilterType = "all" | "cafe" | "fashion" | "it" | "food"
 type SortType = "recent" | "score" | "name"
@@ -50,6 +51,19 @@ export default function MyPagePage() {
   const [filterCategory, setFilterCategory] = useState<FilterType>("all")
   const [sortBy, setSortBy] = useState<SortType>("recent")
   const { toast } = useToast()
+
+type MyPost = {
+  id: number
+  title: string
+  category: string | null
+  views: number
+  likes: number
+  comments: number
+  createdAt: string
+}
+
+const [posts, setPosts] = useState<MyPost[]>([])
+const [loadingPosts, setLoadingPosts] = useState(false)
 
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [profileData, setProfileData] = useState({
@@ -70,6 +84,38 @@ export default function MyPagePage() {
       }))
     }
   }, [user])
+
+
+  const fetchPosts = async () => {
+    if (!user?.user_id) return
+    
+    try {
+      setLoadingPosts(true)
+      const response = await API.get(`/board/user/${user.user_id}`)
+      const fetchedPosts: MyPost[] = (response.data?.data ?? []).map((post: any) => ({
+        id: post.idx,
+        title: post.title ?? "제목 없음",
+        category: post.category ?? "카테고리 미지정",
+        views: post.views ?? 0,
+        likes: post.likes ?? 0,
+        comments: post.comments_count ?? 0,
+        createdAt: post.created_at
+          ? new Date(post.created_at).toLocaleDateString("ko-KR")
+          : "",
+      }))
+      setPosts(fetchedPosts)
+    } catch (error: any) {
+      console.error(error);
+    } finally {
+      setLoadingPosts(false);
+    }
+  }
+
+  useEffect(() => {
+    if (user?.user_id) {
+      fetchPosts()
+    }
+  }, [user?.user_id])
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -227,27 +273,6 @@ export default function MyPagePage() {
     return null
   }
 
-  const myPosts = [
-    {
-      id: "1",
-      title: "강남역 근처 카페 창업 후기",
-      category: "창업후기",
-      views: 234,
-      likes: 12,
-      comments: 5,
-      createdAt: "3일 전",
-    },
-    {
-      id: "2",
-      title: "임대료 협상 팁 공유합니다",
-      category: "노하우",
-      views: 456,
-      likes: 34,
-      comments: 12,
-      createdAt: "1주 전",
-    },
-  ]
-
   const removeFavorite = (id: string, name: string) => {
     setFavorites((prev) => prev.filter((fav) => fav.id !== id))
     toast({
@@ -295,7 +320,7 @@ export default function MyPagePage() {
 
   const stats = [
     { label: "관심 지역", value: favorites.length, icon: Heart, color: "text-red-500" },
-    { label: "작성 글", value: myPosts.length, icon: FileText, color: "text-blue-500" },
+    { label: "작성 글", value: posts.length, icon: FileText, color: "text-blue-500" },
     { label: "알림", value: unreadCount, icon: Bell, color: "text-primary" },
     { label: "분석 횟수", value: 23, icon: TrendingUp, color: "text-secondary" },
   ]
@@ -721,55 +746,79 @@ export default function MyPagePage() {
               <p className="text-muted-foreground">커뮤니티에 작성한 게시글을 관리하세요</p>
             </div>
             <Button asChild className="shadow-md">
-              <Link href="/community/write">글쓰기</Link>
+              <Link href="/board/write">글쓰기</Link>
             </Button>
           </div>
-          {myPosts.map((post) => (
-            <Card
-              key={post.id}
-              className="hover:shadow-xl transition-all cursor-pointer border-2 border-primary/10 hover:border-primary/30"
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Badge variant="secondary" className="text-sm px-3 py-1 shadow-sm">
-                        {post.category}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">{post.createdAt}</span>
-                    </div>
-                    <h3 className="font-bold text-xl mb-4 hover:text-primary transition-colors">{post.title}</h3>
-                    <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Eye className="h-4 w-4" /> {post.views}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Heart className="h-4 w-4" /> {post.likes}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MessageSquare className="h-4 w-4" /> {post.comments}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Button size="sm" variant="outline" className="shadow-sm bg-background" asChild>
-                      <Link href={`/community/${post.id}`}>보기</Link>
-                    </Button>
-                    <Button size="sm" variant="outline" className="shadow-sm bg-background">
-                      수정
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="shadow-sm bg-background hover:bg-destructive hover:text-destructive-foreground"
-                    >
-                      삭제
-                    </Button>
-                  </div>
-                </div>
+          {loadingPosts ? (
+            <Card className="border-2 border-dashed">
+              <CardContent className="p-8 text-center text-muted-foreground">
+                내 게시글을 불러오는 중입니다...
               </CardContent>
             </Card>
-          ))}
+          ) : posts.length === 0 ? (
+            <Card className="border-2 border-dashed">
+              <CardContent className="p-12 text-center">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-lg font-medium mb-2">작성한 게시글이 없습니다</p>
+                <p className="text-sm text-muted-foreground mb-4">커뮤니티에서 첫 게시글을 작성해보세요.</p>
+                <Button asChild>
+                  <Link href="/board/write">글쓰기</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            posts.map((post) => (
+              <Card
+                key={post.id}
+                className="hover:shadow-xl transition-all cursor-pointer border-2 border-primary/10 hover:border-primary/30"
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-3">
+                        <Badge variant="secondary" className="text-sm px-3 py-1 shadow-sm">
+                          {post.category}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">{post.createdAt}</span>
+                      </div>
+                      <h3 className="font-bold text-xl mb-4 hover:text-primary transition-colors">{post.title}</h3>
+                      <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Eye className="h-4 w-4" /> {post.views}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Heart className="h-4 w-4" /> {post.likes}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MessageSquare className="h-4 w-4" /> {post.comments}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Button size="sm" variant="outline" className="shadow-sm bg-background" asChild>
+                        <Link href={`/board/${post.id}`}>보기</Link>
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="shadow-sm bg-background"
+                        onClick={() => router.push(`/board/edit/${post.id}`)}
+                        >
+                        수정
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shadow-sm bg-background hover:bg-destructive hover:text-destructive-foreground"
+                      >
+                        삭제
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </TabsContent>
 
         <TabsContent value="notifications" className="space-y-6">

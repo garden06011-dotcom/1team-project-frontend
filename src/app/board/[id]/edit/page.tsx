@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useRef, use, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/src/components/ui/button'
@@ -24,6 +26,14 @@ export default function EditPostPage({ params }: { params: Promise<{ id: string 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const [postData, setPostData] = useState<any>({
+      title: title,
+      content: content,
+      category: category,
+      tags: tags,
+      user_id: user?.user_id,
+    });
+
 
     const titleRef = useRef<HTMLInputElement>(null);
     const contentRef = useRef<HTMLTextAreaElement>(null);
@@ -36,7 +46,7 @@ export default function EditPostPage({ params }: { params: Promise<{ id: string 
         try {
             setIsLoading(true)
             setError(null)
-            const response = await API.get(`/board/${id}`)
+            const response = await API.get(`/board/edit/${id}`)
             setTitle(response.data.data.title)
             setContent(response.data.data.content)
             setCategory(response.data.data.category)
@@ -44,14 +54,13 @@ export default function EditPostPage({ params }: { params: Promise<{ id: string 
         } catch (error:any) {
             console.error(error);
             setError(error.response?.data?.message || "게시글을 불러오지 못했습니다.")
-        } finally {
-            setIsLoading(false)
-        }
+        } 
     }
 
     useEffect(() => {
         fetchPost()
-    }, [id])
+    }, [!id])
+   
 
     const handleAddTag = () => {
         if(tagInput.trim() && tags.length < 5 && !tags.includes(tagInput.trim())) {
@@ -72,7 +81,7 @@ export default function EditPostPage({ params }: { params: Promise<{ id: string 
         }
 
         try {
-            await API.put(`/board/${id}`, {
+            await API.put(`/board/edit/${id}`, {
                 title,
                 content,
                 category,
@@ -180,8 +189,9 @@ export default function EditPostPage({ params }: { params: Promise<{ id: string 
               </Button>
               <Button 
                 type="submit"
-                disabled={isLoading || !category || !title || !content}
+                // disabled={isLoading || !category || !title || !content}
                 className="font-bold cursor-pointer transition-all duration-300 hover:bg-green-500 hover:text-white"
+                onClick={handleSubmit}
               >수정완료</Button>
             </div>
           </form>

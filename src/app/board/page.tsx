@@ -110,42 +110,21 @@ export default function CommunityPage() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  // 페이지 번호 버튼 생성 로직
+  // 페이지 번호 버튼 생성 로직 - 5개씩 고정 표시
   const getPageNumbers = () => {
-    const pages: (number | string)[] = []
-    const maxVisible = 5 // 최대 표시할 페이지 번호 수
+    const pagesPerGroup = 5 // 한 그룹당 표시할 페이지 수
+    const pages: number[] = []
     
-    if (totalPages <= maxVisible) {
-      // 전체 페이지가 적으면 모두 표시
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i)
-      }
-    } else {
-      // 첫 페이지
-      pages.push(1)
-      
-      if (page <= 3) {
-        // 현재 페이지가 앞쪽에 있을 때
-        for (let i = 2; i <= 4; i++) {
-          pages.push(i)
-        }
-        pages.push('...')
-        pages.push(totalPages)
-      } else if (page >= totalPages - 2) {
-        // 현재 페이지가 뒤쪽에 있을 때
-        pages.push('...')
-        for (let i = totalPages - 3; i <= totalPages; i++) {
-          pages.push(i)
-        }
-      } else {
-        // 현재 페이지가 중간에 있을 때
-        pages.push('...')
-        for (let i = page - 1; i <= page + 1; i++) {
-          pages.push(i)
-        }
-        pages.push('...')
-        pages.push(totalPages)
-      }
+    // 현재 페이지가 속한 그룹 계산 (1-5: 그룹1, 6-10: 그룹2, ...)
+    const currentGroup = Math.ceil(page / pagesPerGroup)
+    
+    // 해당 그룹의 시작 페이지와 끝 페이지 계산
+    const startPage = (currentGroup - 1) * pagesPerGroup + 1
+    const endPage = Math.min(currentGroup * pagesPerGroup, totalPages)
+    
+    // 해당 그룹의 페이지 번호들 생성
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i)
     }
     
     return pages
@@ -281,15 +260,8 @@ export default function CommunityPage() {
         )}
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-2 pt-4 flex-wrap">
-            <Button 
-              variant="outline" 
-              size="sm"
-              disabled={page === 1 || loading} 
-              onClick={() => handlePageChange(1)}
-              title="첫 페이지"
-            >
-              «
-            </Button>
+            
+            {/* 이전 페이지로 이동 버튼 */}
             <Button 
               variant="outline" 
               size="sm"
@@ -300,30 +272,20 @@ export default function CommunityPage() {
             </Button>
             
             {/* 페이지 번호 버튼들 */}
-            {getPageNumbers().map((pageNum, index) => {
-              if (pageNum === '...') {
-                return (
-                  <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">
-                    ...
-                  </span>
-                )
-              }
-              
-              const pageNumber = pageNum as number
-              return (
-                <Button
-                  key={pageNumber}
-                  variant={page === pageNumber ? "default" : "outline"}
-                  size="sm"
-                  disabled={loading}
-                  onClick={() => handlePageChange(pageNumber)}
-                  className="min-w-[40px]"
-                >
-                  {pageNumber}
-                </Button>
-              )
-            })}
+            {getPageNumbers().map((pageNumber) => (
+              <Button
+                key={pageNumber}
+                variant={page === pageNumber ? "default" : "outline"}
+                size="sm"
+                disabled={loading}
+                onClick={() => handlePageChange(pageNumber)}
+                className="min-w-[40px]"
+              >
+                {pageNumber}
+              </Button>
+            ))}
             
+            {/* 다음 페이지로 이동 버튼 */}
             <Button 
               variant="outline" 
               size="sm"
@@ -332,15 +294,7 @@ export default function CommunityPage() {
             >
               다음
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              disabled={page === totalPages || loading} 
-              onClick={() => handlePageChange(totalPages)}
-              title="마지막 페이지"
-            >
-              »
-            </Button>
+            
           </div>
         )}
         </div>

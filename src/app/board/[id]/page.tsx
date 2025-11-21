@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useEffect, useMemo, useState } from "react"
+import { use, useEffect, useMemo, useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/src/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card"
@@ -43,7 +43,10 @@ type BoardDetail = {
 }
 
 export default function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  // const { id } = use(params)
   const { id } = use(params)
+
+  // const [id, setId] = useState<string | null>(null)
   const router = useRouter()
   const { user } = useAuth()
   const [isLiked, setIsLiked] = useState(false)
@@ -54,13 +57,25 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   const [likeLoading, setLikeLoading] = useState(false)
   const [commentLoading, setCommentLoading] = useState(false)
 
+
+  const hasFetched = useRef(false)
+
+
   useEffect(() => {
     const fetchPost = async () => {
       try {
         setLoading(true)
         setError(null)
-        const response = await API.get(`/board/${id}`)
+        const response = await API.get(`/board/${id}`, {
+          params: {
+            user_id: user?.user_id ?? '', // ✅ 로그인한 유저 정보 전달
+          }
+        })
         setPost(response.data.data)
+        // ✅ 백엔드에서 내려준 isLiked 로 상태 설정
+        if (typeof response.data.data.isLiked === 'boolean') {
+          setIsLiked(response.data.data.isLiked)
+        }
       } catch (err: any) {
         console.error(err)
         setError(err.response?.data?.message || "게시글을 불러오지 못했습니다.")
@@ -69,10 +84,12 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
       }
     }
 
-    if (id) {
+    if (!id) return;
+    if (hasFetched.current) return; // 두번째 실행이면 스킵
+    hasFetched.current = true; // 첫번째 실행 후 플래그 설정, 첫 실행만 true로 설정
       fetchPost()
-    }
-  }, [id])
+    
+  }, [id, user?.user_id])
 
   const tags = useMemo(() => (post?.tags ? post.tags.split(",").map((tag) => tag.trim()).filter(Boolean) : []), [post?.tags])
   const commentList = post?.comments ?? []
@@ -81,27 +98,61 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
 
 
   // 좋아요 클릭 시 좋아요 수 토글 (증가/감소)
-  const handleLikeClick = async () => {
-    // 중복 클릭 방지
-    if (likeLoading) return;
+  // const handleLikeClick = async () => {
+  //   // 중복 클릭 방지
+  //   if (likeLoading) return; // 이미 좋아요 처리 중이면 스킵
     
-    const action = isLiked ? 'unlike' : 'like';
+  //   const action = isLiked ? 'unlike' : 'like';
     
-    try {
-      setLikeLoading(true);
-      const response = await API.post(`/board/${id}/like`, { action });
+  //   try {
+  //     setLikeLoading(true);
+  //     const response = await API.post(`/board/${id}/like`, { action });
       
-      // 백엔드에서 반환한 실제 좋아요 수를 사용
+  //     // 백엔드에서 반환한 실제 좋아요 수를 사용
+  //     if (response.data?.data?.likes !== undefined) {
+  //       setPost((prev) => prev ? { ...prev, likes: response.data.data.likes } : null);
+  //       setIsLiked(!isLiked);
+  //       // console.log(response.data.data.likes)
+  //     }
+  //   } catch (error: any) {
+  //     console.error(error);
+  //     alert('좋아요 처리에 실패하였습니다. 다시 시도해 주세요')
+  //   } finally {
+  //     setLikeLoading(false);
+  //   }
+  // }
+
+  const handleLikeClick = async () => {
+    if (!user?.user_id) {
+      alert('로그인이 필요합니다.')
+      router.push('/user/login')
+      return
+    }
+
+    if (likeLoading) return
+
+    const action = isLiked ? 'unlike' : 'like'
+
+    try {
+      setLikeLoading(true)
+      const response = await API.post(`/board/${id}/like`, { 
+        action,
+        user_id: user.user_id,   // ✅ 추가
+      })
+      
       if (response.data?.data?.likes !== undefined) {
-        setPost((prev) => prev ? { ...prev, likes: response.data.data.likes } : null);
-        setIsLiked(!isLiked);
-        // console.log(response.data.data.likes)
+        setPost((prev) => prev ? { ...prev, likes: response.data.data.likes } : null)
+      }
+      if (typeof response.data?.data?.isLiked === 'boolean') {
+        setIsLiked(response.data.data.isLiked)
+      } else {
+        setIsLiked(!isLiked)
       }
     } catch (error: any) {
-      console.error(error);
-      alert('좋아요 처리에 실패하였습니다. 다시 시도해 주세요')
+      console.error(error)
+      alert(error.response?.data?.message || '좋아요 처리에 실패하였습니다. 다시 시도해 주세요')
     } finally {
-      setLikeLoading(false);
+      setLikeLoading(false)
     }
   }
 
@@ -143,6 +194,42 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     }
     }
 
+  // 댓글 삭제
+  const handleCommentDelete = async (commentId: number) => {
+
+    const confirmDelete = window.confirm("정말 댓글을 삭제하시겠습니까?");
+    if(!confirmDelete) return;
+
+
+    if (commentLoading) return;
+    setCommentLoading(true);
+    try {
+      const response = await API.delete(`/board/${id}/comment/${commentId}`, {
+        params: {
+          commentId: commentId.toString(),
+        }
+      })
+      if(response.data?.message) {
+        alert(response.data.message);
+      } else {
+        alert("댓글 삭제에 실패했습니다. 다시 시도해 주세요.")
+      }
+
+      // 댓글 목록 새로고침
+      const updatedResponse = await API.get(`/board/${id}`)
+      if (updatedResponse.data?.data) {
+        setPost(updatedResponse.data.data)
+      }
+    } catch (error: any) {
+      console.error(error);
+      alert(error.response?.data?.message || "댓글 삭제에 실패했습니다. 다시 시도해 주세요.")
+    } finally {
+      setCommentLoading(false);
+    }
+  }
+
+  // useEffect(() => {})
+
   if (loading) {
     return (
       <div className="container mx-auto p-4 max-w-4xl text-center py-12">
@@ -166,8 +253,28 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   const commentsCount = commentList.length ?? post.comments_count ?? 0
 
 
+  // 게시글 삭제
+  const handleDeleteClick = async () => {
 
+    const confirmDelete = window.confirm('정말 게시글을 삭제하시겠습니까?');
+    
+    if(!confirmDelete) {
+      return;
+    }
 
+    try {
+      const response = await API.delete(`/board/delete/${id}`)
+      if(response.data?.message) {
+        alert(response.data.message);
+        router.push('/board');
+      } else {
+        alert('게시글 삭제에 실패했습니다. 다시 시도해 주세요')
+      }
+    } catch (error: any) {
+      console.error(error);
+      alert(error.response?.data?.message || '게시글 삭제에 실패했습니다. 다시 시도해 주세요')
+    }
+  }
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
@@ -211,14 +318,14 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            {/* <div className="flex gap-2">
               <Button variant="ghost" size="icon">
                 <Share2 className="h-4 w-4" />
               </Button>
               <Button variant="ghost" size="icon">
                 <Flag className="h-4 w-4" />
               </Button>
-            </div>
+            </div> */}
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -255,12 +362,12 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
               <div>
                 <Button variant="outline" 
                 className="flex-1 bg-transparent cursor-pointer" 
-                onClick={() => router.push(`/board/edit/${id}/`)}>
+                onClick={() => router.push(`/board/${id}/edit`)}>
                   수정하기
                 </Button>
                 <Button variant="outline" 
                 className="flex-1 bg-transparent cursor-pointer" 
-                onClick={() => router.push(`/board/delete/${id}`)}>
+                onClick={handleDeleteClick}>
                   삭제하기
                 </Button>
               </div>
@@ -286,12 +393,13 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                   placeholder="댓글을 입력하세요"
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
-                  className="mb-3"
+                  className="mb-3 resize-none h-24 overflow-y-auto"
                   disabled={commentLoading}
                 />
                 <div className="flex justify-end">
                   <Button 
                     onClick={handleCommentSubmit} 
+                    className="cursor-pointer hover:text-white"
                     disabled={!commentText.trim() || commentLoading}
                   >
                     {commentLoading ? "작성 중..." : "댓글 작성"}
@@ -322,13 +430,14 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                           : "방금 전"}
                       </p>
                     </div>
-                    <Button variant="ghost" size="sm">
-                      <Heart className="h-4 w-4 mr-1" />
-                      {comment.likes ?? 0}
-                    </Button>
                   </div>
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
                 </div>
+                <Button 
+                  onClick={() => handleCommentDelete(comment.idx)}
+                  className="cursor-pointer hover:text-white">
+                  삭제
+                </Button>
               </div>
             </CardContent>
           </Card>

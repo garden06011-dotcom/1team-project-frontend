@@ -319,9 +319,9 @@ const [loadingPosts, setLoadingPosts] = useState(false)
   const unreadCount = notifications.filter((n) => !n.isRead).length
 
   const stats = [
-    { label: "관심 지역", value: favorites.length, icon: Heart, color: "text-red-500" },
+    // { label: "관심 지역", value: favorites.length, icon: Heart, color: "text-red-500" },
     { label: "작성 글", value: posts.length, icon: FileText, color: "text-blue-500" },
-    { label: "알림", value: unreadCount, icon: Bell, color: "text-primary" },
+    // { label: "알림", value: unreadCount, icon: Bell, color: "text-primary" },
     { label: "분석 횟수", value: 23, icon: TrendingUp, color: "text-secondary" },
   ]
 
@@ -351,7 +351,15 @@ const [loadingPosts, setLoadingPosts] = useState(false)
                     설정
                   </Link>
                 </Button> */}
-                <Button variant="outline" size="sm" onClick={logout} className="shadow-sm bg-background hover:bg-muted">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    logout();
+                    router.push('/user/login');
+                  }} 
+                  className="shadow-sm bg-background hover:bg-muted"
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   로그아웃
                 </Button>
@@ -362,7 +370,7 @@ const [loadingPosts, setLoadingPosts] = useState(false)
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-2 gap-4 md:gap-6 mb-8">
         {stats.map((stat, index) => (
           <Card key={index} className="hover:shadow-lg transition-all hover:-translate-y-1 border-2 border-primary/10">
             <CardContent className="p-6">
@@ -381,27 +389,27 @@ const [loadingPosts, setLoadingPosts] = useState(false)
       </div>
 
       <Tabs defaultValue={defaultTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 h-14 p-1 bg-muted/50">
+        <TabsList className="grid w-full grid-cols-2 h-14 p-1 bg-muted/50">
           <TabsTrigger
             value="profile"
             className="text-base data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer hover:bg-muted"
           >
             <User className="mr-2 h-4 w-4" />내 정보
           </TabsTrigger>
-          <TabsTrigger
+          {/* <TabsTrigger
             value="favorites"
             className="text-base data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer hover:bg-muted"
           >
             <Heart className="mr-2 h-4 w-4" />
             관심 지역
-          </TabsTrigger>
+          </TabsTrigger> */}
           <TabsTrigger
             value="posts"
             className="text-base data-[state=active]:bg-background data-[state=active]:shadow-sm cursor-pointer hover:bg-muted"
           >
             <FileText className="mr-2 h-4 w-4" />내 게시글
           </TabsTrigger>
-          <TabsTrigger
+          {/* <TabsTrigger
             value="notifications"
             className="text-base data-[state=active]:bg-background data-[state=active]:shadow-sm relative cursor-pointer hover:bg-muted"
           >
@@ -412,7 +420,7 @@ const [loadingPosts, setLoadingPosts] = useState(false)
                 {unreadCount}
               </Badge>
             )}
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">

@@ -3,7 +3,6 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useAuth } from "@/src/lib/auth-context"
 import { Button } from "@/src/components/ui/button"
 import {
   DropdownMenu,
@@ -17,11 +16,15 @@ import { Avatar, AvatarFallback } from "@/src/components/ui/avatar"
 import { Badge } from "@/src/components/ui/badge"
 import { Building2, Menu, X, User, Settings, LogOut, Bell, Heart } from "lucide-react"
 import { cn } from "@/src/lib/utils"
+import { useAuthStore } from "@/src/stores/authStore"
+import { useRouter } from "next/navigation"
 
 export function Header() {
-  const { user, logout } = useAuth()
+  const { user, logout, updateNickname } = useAuthStore()
   const pathname = usePathname()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  const router = useRouter()
 
   const navItems = [
     { name: "홈", href: "/" },
@@ -80,17 +83,17 @@ export function Header() {
                   <Button variant="ghost" className="gap-2 hover:bg-primary/10">
                     <Avatar className="h-8 w-8 border-2 border-primary/20">
                       <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-primary-foreground font-semibold">
-                        {user.name[0]}
+                        {user.nickname?.[0] || user.email?.[0] || 'U'}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="hidden md:inline-block font-medium">{user.name}</span>
+                    <span className="hidden md:inline-block font-medium">{user.nickname || user.email}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>
                     <div>
-                      <p className="font-medium">{user.name}</p>
-                      <p className="text-xs text-muted-foreground">{user.email || user.user_id}</p>
+                      <p className="font-medium">{user.nickname || user.email}</p>
+                      <p className="text-xs text-muted-foreground">{user.email}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -116,7 +119,13 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive">
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      logout();
+                      router.push('/user/login');
+                    }} 
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
                     로그아웃
                   </DropdownMenuItem>

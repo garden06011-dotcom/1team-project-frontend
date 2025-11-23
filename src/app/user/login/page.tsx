@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { useAuth } from "@/src/lib/auth-context"
+import { useAuthStore } from "@/src/stores/authStore"
 import { Button } from "@/src/components/ui/button"
 import { Input } from "@/src/components/ui/input"
 import { Label } from "@/src/components/ui/label"
@@ -20,7 +20,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { login } = useAuth()
+  const { login } = useAuthStore()
   const router = useRouter()
 
   const [emailErr, setEmailErr] = useState("");
@@ -102,8 +102,9 @@ export default function LoginPage() {
           email, password 
         })
       if(response.status === 200) {
-        const userData = response.data.user;
-        await login(userData);
+        const { user, accessToken, refreshToken } = response.data;
+        // Zustand store에 로그인 정보 저장
+        login({ user, accessToken, refreshToken });
         router.push("/user/mypage");
       } else {
         setError(response.data.message);
@@ -126,8 +127,9 @@ export default function LoginPage() {
         password: "demo1234"
       })
       if(response.status === 200) {
-        const userData = response.data.user;
-        await login(userData);
+        const { user, accessToken, refreshToken } = response.data;
+        // Zustand store에 로그인 정보 저장
+        login({ user, accessToken, refreshToken });
         router.push("/user/mypage")
       }
     } catch (err) {

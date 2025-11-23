@@ -1,21 +1,30 @@
 "use client"
 
 import { useState } from "react"
-import { KakaoMap } from "@/src/components/kakao-map"
 import { LocationWizard } from "@/src/components/location-wizard"
+import KakaoMap from "@/src/components/kakao-map"
 
 import { useRouter } from "next/navigation";
 
 export default function MapPage() {
   const [showWizard, setShowWizard] = useState(true);
   const [selectedDong, setSelectedDong] = useState<string | null>(null);
+  const [dongCenter, setDongCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapData, setMapData] = useState<any>(null);
+  const [wizardDone, setWizardDone] = useState(false);
   const router = useRouter();
 
-  const handleWizardComplete = (dongList: string[]) => {
-    if (dongList.length > 0) {
-      setSelectedDong(dongList[0]); // 첫 번째 동으로 지도 포커싱
-    }
-    setShowWizard(false);
+  const handleWizardComplete = (data: {
+    businessType: string;
+    city: string;
+    district: string;
+    subdistrict: string;
+    lat: number;
+    lng: number;
+  }) => {
+    setMapData(data); // 창업 정보 저장
+    setWizardDone(true); // 창업 정보 저장 완료
+    setShowWizard(false); // wizard 숨기기
   };
 
   {selectedDong && (
@@ -32,10 +41,16 @@ export default function MapPage() {
           <p className="text-muted-foreground">지도에서 위치를 선택하고 AI 추천을 받아보세요.</p>
         </div>
       </div>
-      <KakaoMap selectedDong={selectedDong} />
+
+      <KakaoMap
+        selectedDong={mapData?.subdistrict || null}
+        dongCenter={{ lat: mapData?.lat || 0, lng: mapData?.lng || 0 }}
+        businessType={mapData?.businessType || ""}
+      />
+
       {showWizard && (
         <LocationWizard
-          onComplete={(dong) => handleWizardComplete(dong)}
+          onComplete={handleWizardComplete}
           onClose={() => setShowWizard(false)}
         />
       )}

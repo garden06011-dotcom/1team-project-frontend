@@ -226,102 +226,102 @@ export default function SignupPage() {
   }
 
 
-  // [추가] util 함수들
-  const onlyDigits = (s: string) => s.replace(/\D/g, "");
+// [추가] util 함수들
+const onlyDigits = (s: string) => s.replace(/\D/g, "");
 
-  const clampBirth = (s: string) => onlyDigits(s).slice(0, 8); // YYYYMMDD 최대 8자리
+const clampBirth = (s: string) => onlyDigits(s).slice(0, 8); // YYYYMMDD 최대 8자리
 
-  const isValidYyyymmdd = (yyyymmdd: string) => {
-    if (yyyymmdd.length !== 8) return false;
-    const y = parseInt(yyyymmdd.slice(0, 4), 10);
-    const m = parseInt(yyyymmdd.slice(4, 6), 10);
-    const d = parseInt(yyyymmdd.slice(6, 8), 10);
-    if (y < 1900 || y > 2100) return false;
-    if (m < 1 || m > 12) return false;
-    const daysInMonth = new Date(y, m, 0).getDate(); // 해당 월의 마지막 날
-    return d >= 1 && d <= daysInMonth;
-  };
+const isValidYyyymmdd = (yyyymmdd: string) => {
+  if (yyyymmdd.length !== 8) return false;
+  const y = parseInt(yyyymmdd.slice(0, 4), 10);
+  const m = parseInt(yyyymmdd.slice(4, 6), 10);
+  const d = parseInt(yyyymmdd.slice(6, 8), 10);
+  if (y < 1900 || y > 2100) return false;
+  if (m < 1 || m > 12) return false;
+  const daysInMonth = new Date(y, m, 0).getDate(); // 해당 월의 마지막 날
+  return d >= 1 && d <= daysInMonth;
+};
 
-  const allowedGenderDigits = (yyyymmdd: string): ("1"|"2"|"3"|"4")[] => {
-    if (yyyymmdd.length < 8 || !isValidYyyymmdd(yyyymmdd)) return ["1","2","3","4"];
-    return yyyymmdd >= "20000101" ? ["3","4"] : ["1","2"];
-  };
+const allowedGenderDigits = (yyyymmdd: string): ("1"|"2"|"3"|"4")[] => {
+  if (yyyymmdd.length < 8 || !isValidYyyymmdd(yyyymmdd)) return ["1","2","3","4"];
+  return yyyymmdd >= "20000101" ? ["3","4"] : ["1","2"];
+};
 
-  const genderFromDigit = (digit: "1"|"2"|"3"|"4") => (digit === "1" || digit === "3" ? "M" : "F");
+const genderFromDigit = (digit: "1"|"2"|"3"|"4") => (digit === "1" || digit === "3" ? "M" : "F");
 
 
 
-  // 생년월일 인증
-  // [추가] 생년월일 변경
-  const handleBirthChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const next = clampBirth(e.target.value);
-    setBirth(next);
+// 생년월일 인증
+// [추가] 생년월일 변경
+const handleBirthChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const next = clampBirth(e.target.value);
+  setBirth(next);
 
-    // 유효성
-    if (next.length === 0) {
-      setBirthErr("생년월일을 입력하세요.");
-    } else if (next.length < 8) {
-      setBirthErr("8자리로 입력하세요. 예: 19991231");
-    } else if (!isValidYyyymmdd(next)) {
-      setBirthErr("유효한 날짜가 아닙니다.");
-    } else {
-      setBirthErr("");
-    }
+  // 유효성
+  if (next.length === 0) {
+    setBirthErr("생년월일을 입력하세요.");
+  } else if (next.length < 8) {
+    setBirthErr("8자리로 입력하세요. 예: 19991231");
+  } else if (!isValidYyyymmdd(next)) {
+    setBirthErr("유효한 날짜가 아닙니다.");
+  } else {
+    setBirthErr("");
+  }
 
-    // 생년월일 바뀌면 성별코드 가능 범위도 바뀜 → 현재 값이 허용 범위 밖이면 비우기
-    const allow = allowedGenderDigits(next);
-    if (genderDigit && !allow.includes(genderDigit as any)) {
-      setGenderDigit("");
-    }
-  };
+  // 생년월일 바뀌면 성별코드 가능 범위도 바뀜 → 현재 값이 허용 범위 밖이면 비우기
+  const allow = allowedGenderDigits(next);
+  if (genderDigit && !allow.includes(genderDigit as any)) {
+    setGenderDigit("");
+  }
+};
 
-  // [추가] 성별 한 자리 변경 (숫자만, 길이 1, 허용 범위 체크)
-  const handleGenderDigitChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-    const digit = onlyDigits(inputValue).slice(0, 1);
-    const allow = allowedGenderDigits(birth) as string[];
-    
-    // 빈 값이면 그대로 설정
-    if (!digit) {
-      setGenderDigit("");
-      setGenderErr("");
-      return;
-    }
-    
-    // 허용 범위 체크
-    if (!allow.includes(digit)) {
-      setGenderErr(
-        birth && isValidYyyymmdd(birth)
-          ? birth >= "20000101"
-            ? "2000년생 이후는 3(남) 또는 4(여)만 가능합니다."
-            : "1999년생 이전은 1(남) 또는 2(여)만 가능합니다."
-          : "생년월일을 올바르게 입력하세요."
-      );
-      // 허용되지 않아도 입력은 유지 (사용자가 볼 수 있도록)
-      setGenderDigit(digit);
-      return;
-    }
-    
-    // 허용된 값이면 설정하고 에러 제거
-    setGenderDigit(digit);
+// [추가] 성별 한 자리 변경 (숫자만, 길이 1, 허용 범위 체크)
+const handleGenderDigitChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const inputValue = e.target.value;
+  const digit = onlyDigits(inputValue).slice(0, 1);
+  const allow = allowedGenderDigits(birth) as string[];
+  
+  // 빈 값이면 그대로 설정
+  if (!digit) {
+    setGenderDigit("");
     setGenderErr("");
-  };
+    return;
+  }
+  
+  // 허용 범위 체크
+  if (!allow.includes(digit)) {
+    setGenderErr(
+      birth && isValidYyyymmdd(birth)
+        ? birth >= "20000101"
+          ? "2000년생 이후는 3(남) 또는 4(여)만 가능합니다."
+          : "1999년생 이전은 1(남) 또는 2(여)만 가능합니다."
+        : "생년월일을 올바르게 입력하세요."
+    );
+    // 허용되지 않아도 입력은 유지 (사용자가 볼 수 있도록)
+    setGenderDigit(digit);
+    return;
+  }
+  
+  // 허용된 값이면 설정하고 에러 제거
+  setGenderDigit(digit);
+  setGenderErr("");
+};
 
-  // [참고] 전송/저장 시 가공 예시
-  const payloadPreview = useMemo(() => {
-    if (birth.length === 8 && isValidYyyymmdd(birth) && ["1","2","3","4"].includes(genderDigit)) {
-      const yyyy = birth.slice(0,4);
-      const mm   = birth.slice(4,6);
-      const dd   = birth.slice(6,8);
-      const gender = genderFromDigit(genderDigit as "1"|"2"|"3"|"4"); // "M" | "F"
-      return {
-        birthISO: `${yyyy}-${mm}-${dd}`, // "1999-12-31"
-        genderDigit,                     // "1"|"2"|"3"|"4"
-        gender,                          // "M"|"F"
-      };
-    }
-    return null;
-  }, [birth, genderDigit]);
+// [참고] 전송/저장 시 가공 예시
+const payloadPreview = useMemo(() => {
+  if (birth.length === 8 && isValidYyyymmdd(birth) && ["1","2","3","4"].includes(genderDigit)) {
+    const yyyy = birth.slice(0,4);
+    const mm   = birth.slice(4,6);
+    const dd   = birth.slice(6,8);
+    const gender = genderFromDigit(genderDigit as "1"|"2"|"3"|"4"); // "M" | "F"
+    return {
+      birthISO: `${yyyy}-${mm}-${dd}`, // "1999-12-31"
+      genderDigit,                     // "1"|"2"|"3"|"4"
+      gender,                          // "M"|"F"
+    };
+  }
+  return null;
+}, [birth, genderDigit]);
 
 
 

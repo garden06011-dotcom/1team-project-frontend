@@ -1,490 +1,260 @@
-"use client"
+"use client";
 
-import { useEffect, useRef, useState } from "react"
-import Script from "next/script"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src/components/ui/card"
-import { Badge } from "@/src/components/ui/badge"
-import { Button } from "@/src/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/components/ui/tabs"
-import { Progress } from "@/src/components/ui/progress"
+import { useEffect, useRef, useState } from "react";
+import Script from "next/script";
+import axios from "axios";
+
+// shadcn UI
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/src/components/ui/card";
+import { Button } from "@/src/components/ui/button";
+import { Badge } from "@/src/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/components/ui/tabs";
+
 import {
   MapPin,
-  Bus,
+  Heart,
+  Train,
   ParkingCircle,
   Users,
   TrendingUp,
   Store,
-  Heart,
   BarChart3,
   Clock,
   Calendar,
-  AlertCircle,
-  Award,
-  Target,
-} from "lucide-react"
-import { cn } from "@/src/lib/utils"
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Area,
-  AreaChart,
-} from "recharts"
+  Award
+} from "lucide-react";
+
+import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, BarChart, Bar, LineChart, Line } from "recharts";
+import { cn } from "@/src/lib/utils";
+
+interface KakaoMapProps {
+  selectedDong: string | null;
+  dongCenter: { lat: number; lng: number } | null;
+  businessType?: string;
+}
 
 interface MarkerData {
-  lat: number
-  lng: number
-  name: string
-  address: string
+  lat: number;
+  lng: number;
+  name: string;
+  address: string;
 }
 
 interface AnalysisData {
-  busStops: number
-  parkingLots: number
-  pedestrians: string
-  revenue: string
-  competitors: number
-  category: string
+  parkingLots: number;
+  schools: number;
+  hospitals: number;
+  touristSpots: number;
+  culturalFacilities: number;
+  competitors: number;
+  pedestrians: string;
+  revenue: string;
+  category: string;
+  score?: string;
+  subwayStations: number;
+  banks: number;
 }
 
-interface LocationRecommendation {
-  id: number
-  name: string
-  address: string
-  totalScore: number
-  scores: {
-    traffic: number
-    rent: number
-    competitors: number
-    location: number
-  }
-  description: string
-  lat: number
-  lng: number
-}
-
-interface KakaoMapProps {
-  selectedLocation?: LocationRecommendation | null
-  selectedDong?: string | null
-  // top3Spots?: { rank: number; lat: number; lng: number; name: string }[]
-}
-
-export function KakaoMap({ selectedDong}: KakaoMapProps) {
-  
-  const mapRef = useRef<HTMLDivElement>(null)
-  const [map, setMap] = useState<any>(null)
-  const [selectedMarker, setSelectedMarker] = useState<MarkerData | null>(null)
-  const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null)
-  const [isScriptLoaded, setIsScriptLoaded] = useState(false)
-  const [searchKeyword, setSearchKeyword] = useState("")
-  const [isFavorite, setIsFavorite] = useState(false)
-  const [isDemoMode, setIsDemoMode] = useState(false)
-  const [hasApiKey, setHasApiKey] = useState(false)
+export default function KakaoMap({ selectedDong, dongCenter, businessType }: KakaoMapProps) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [map, setMap] = useState<any>(null);
+  const [selectedMarker, setSelectedMarker] = useState<MarkerData | null>(null);
+  const [analysisList, setAnalysisList] = useState<{ marker: MarkerData; analysis: AnalysisData }[]>([]);
+  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const [markers, setMarkers] = useState<any[]>([]);
-  const [markerList, setMarkerList] = useState<MarkerData[]>([]);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [currentBusinessType, setCurrentBusinessType] = useState<string>("");
+  const [activeTab, setActiveTab] = useState("scores")
 
-  
 
-  // 동별 중심좌표 (테스트용)
-  const dongCenters: Record<string, { lat: number; lng: number }> = {
-    "역삼동": { lat: 37.5000, lng: 127.0364 },
-    "삼성동": { lat: 37.5146, lng: 127.0494 },
-    "논현동": { lat: 37.5111, lng: 127.0216 },
-    "합정동": { lat: 37.5495, lng: 126.9139 },
-    "망원동": { lat: 37.5560, lng: 126.9100 },
-    "연남동": { lat: 37.5640, lng: 126.9220 },
-    "서교동": { lat: 37.5560, lng: 126.9238 },
-  }
-
-  // 동별 중심좌표에 따른 지도 중심 이동 (테스트용)
+  // 선택한 업종
   useEffect(() => {
-    console.log("selectedDong:", selectedDong)
-    if(map && selectedDong) {
-      const center = dongCenters[selectedDong]
-      console.log("동별 중심좌표:", center);
-
-    if(center) {
-      const {kakao} = window;
-      map.setCenter(new kakao.maps.LatLng(center.lat, center.lng))
-      map.setLevel(3);
-    }}
-  }, [map, selectedDong])
-
-  // 추천 1~3위 스팟 표시 (테스트용)
-// useEffect(() => {
-//   if (!map || !top3Spots || top3Spots.length === 0) return;
-
-//   const { kakao } = window;
-//   const bounds = new kakao.maps.LatLngBounds();
-
-//   top3Spots.forEach((spot) => {
-//     const position = new kakao.maps.LatLng(spot.lat, spot.lng);
-
-//     // 번호 마커 이미지 (1, 2, 3)
-//     const markerImage = new kakao.maps.MarkerImage(
-//       `${window.location.origin}/marker_number_blue_${spot.rank}.png`,
-//       new kakao.maps.Size(36, 37)
-//     );
-    
-
-//     new kakao.maps.Marker({
-//       position,
-//       map,
-//       title: spot.name,
-//       image: markerImage,
-//     });
-
-//     bounds.extend(position);
-//   });
-
-  // 추천 3개가 한 화면에 보이도록 조정
-//   map.setBounds(bounds);
-// }, [map, top3Spots]);
-
-
-//   useEffect(() => {
-//     if (selectedLocation) {
-//       setSelectedMarker({
-//         lat: selectedLocation.lat,
-//         lng: selectedLocation.lng,
-//         name: selectedLocation.name,
-//         address: selectedLocation.address,
-//       })
-
-//       setAnalysisData({
-//         busStops: 12,
-//         parkingLots: 8,
-//         pedestrians: "35.2만명/일",
-//         revenue: "425만원/월",
-//         competitors: 18,
-//         category: "음식점",
-//       })
-
-//       if (map) {
-//         const { kakao } = window
-//         const moveLatLon = new kakao.maps.LatLng(selectedLocation.lat, selectedLocation.lng)
-//         map.setCenter(moveLatLon)
-//       }
-//     }
-//   }, [selectedLocation, map])
-
-  useEffect(() => {
-    const apiKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY
-    if (!apiKey || apiKey === "YOUR_APP_KEY") {
-      setIsDemoMode(true)
-      setHasApiKey(false)
-      // Show demo data automatically
-      showDemoData()
-    } else {
-      setHasApiKey(true)
+    if (businessType) {
+      console.log("Wizard에서 넘어온 업종 적용:", businessType);
+      setCurrentBusinessType(businessType);
     }
-  }, [])
-
+  }, [businessType]);
   
-  const showDemoData = () => {
-    setSelectedMarker({
-      lat: 37.566535,
-      lng: 126.9779692,
-      name: "서울시청 (테스트 데이터)",
-      address: "서울특별시 중구 세종대로 110",
-    })
 
-    setAnalysisData({
-      busStops: 12,
-      parkingLots: 8,
-      pedestrians: "35.2만명/일",
-      revenue: "425만원/월",
-      competitors: 18,
-      category: "음식점",
-    })
-  }
+  // Wizard에서 선택된 중심 좌표로 이동
+  useEffect(() => {
+    if (map && dongCenter) {
+      const { kakao } = window;
+      map.setCenter(new kakao.maps.LatLng(dongCenter.lat, dongCenter.lng));
+      map.setLevel(3);
+    }
+  }, [map, dongCenter]);
 
-  // 지도 초기화 및 선택 위치에 따른 결과값 핀 찍기
+    // 지도 초기화  
   useEffect(() => {
     if (!isScriptLoaded || !mapRef.current) return;
+  
+    const { kakao } = window;
+    const createdMap = new kakao.maps.Map(mapRef.current, {
+      center: new kakao.maps.LatLng(37.566535, 126.9779692),
+      level: 3,
+    });
 
-  if (!window.kakao || !window.kakao.maps) {
-    console.warn("🚨 Kakao API가 아직 로드되지 않았습니다. 100ms 후 재시도합니다.");
-    setTimeout(() => setIsScriptLoaded(prev => !prev), 100);
-    return;
-  }
+    setMap(createdMap);
 
-  if (map) return;
+  
+    // 지도 클릭 이벤트
+    kakao.maps.event.addListener(createdMap, "click", async (mouseEvent: any) => {
+      const latlng = mouseEvent.latLng;
+      const lat = latlng.getLat();
+      const lng = latlng.getLng();
 
-  const { kakao } = window;
-  const createdMap = new kakao.maps.Map(mapRef.current, {
-    center: new kakao.maps.LatLng(37.566535, 126.9779692),
-    level: 3,
-  });
-  setMap(createdMap);
+      const marker = new kakao.maps.Marker({ map: createdMap, position: latlng });
 
-      // Click event to add marker
-      kakao.maps.event.addListener(createdMap, "click", (mouseEvent: any) => {
-        const latlng = mouseEvent.latLng
-
-        // Create marker
-        const marker = new kakao.maps.Marker({
-          position: latlng,
-          map: createdMap,
-        })
-
-          // 마커 5개 이상일 경우 → 가장 오래된 마커 삭제
-        setMarkers((prevMarkers) => {
-          if (prevMarkers.length >= 5) {
-            prevMarkers[0].setMap(null); // 지도에서 제거
-            return [...prevMarkers.slice(1), marker]; // 최신 마커 추가
-          }
-          return [...prevMarkers, marker];
-        });
-
-        // Get address from coordinates
-        const geocoder = new kakao.maps.services.Geocoder()
-        geocoder.coord2Address(latlng.getLng(), latlng.getLat(), (result: any, status: any) => {
-          if (status === kakao.maps.services.Status.OK) {
-            const address = result[0].address.address_name
-            const roadName = result[0].road_address?.building_name || address
-
-            console.log("📍 선택한 위치:", {
-              lat: latlng.getLat(),
-              lng: latlng.getLng(),
-              address,
-              roadName,
-            })
-
-            // 오른쪽에 리스트 저장
-            setMarkerList((prevList) => {
-              if (prevList.length >= 5) {
-                return [...prevList.slice(1), { lat: latlng.getLat(), lng: latlng.getLng(), name: roadName, address }];
-              }
-              return [...prevList, { lat: latlng.getLat(), lng: latlng.getLng(), name: roadName, address }];
-            });
-
-            setSelectedMarker({
-              lat: latlng.getLat(),
-              lng: latlng.getLng(),
-              name: roadName,
-              address: address,
-            })
-            
-            // Mock analysis data - replace with actual API calls
-            setAnalysisData({
-              busStops: Math.floor(Math.random() * 10) + 5,
-              parkingLots: Math.floor(Math.random() * 8) + 3,
-              pedestrians: `${(Math.random() * 50 + 20).toFixed(1)}만명/일`,
-              revenue: `${Math.floor(Math.random() * 500 + 300)}만원/월`,
-              competitors: Math.floor(Math.random() * 20) + 5,
-              category: "음식점",
-            })
-
-            // Search for nearby places
-            searchNearbyPlaces(createdMap, latlng)
-          }
-        })
-      })
-    
-  }, [isScriptLoaded, mapRef])
-
-  const searchNearbyPlaces = (mapInstance: any, position: any) => {
-    const { kakao } = window
-    const ps = new kakao.maps.services.Places()
-
-    // Search for bus stops
-    ps.keywordSearch(
-      "버스정류장",
-      (data: any, status: any) => {
-        if (status === kakao.maps.services.Status.OK) {
-          data.slice(0, 3).forEach((place: any, index: number) => {
-            const rank = index + 1; // index 1, 2, 3 ... 을 자동으로 부여
-            const {kakao} = window;
-            const markerImgUrl = `${window.location.origin}/marker_number_blue_${rank}.png`;
-
-            console.log("마커이미지:", `/marker_number_blue_${rank}.png`)
-
-            const placePosition = new kakao.maps.LatLng(place.y, place.x)
-
-            
-            const markerImg = new kakao.maps.MarkerImage(
-              markerImgUrl,
-              new kakao.maps.Size(36, 37)
-            );
-
-            const marker = new kakao.maps.Marker({
-              position: placePosition,
-              map: mapInstance,
-              // image: markerImg,
-            });
-          })
+      // 마커 5개 이상일 경우 → 가장 오래된 마커 삭제
+      setMarkers((prevMarkers) => {
+        if (prevMarkers.length >= 2) {
+          prevMarkers[0].setMap(null); // 지도에서 제거
+          return [...prevMarkers.slice(1), marker]; // 최신 마커 추가
         }
-      },
-      {
-        location: position,
-        radius: 500,
-      },
-    )
-  }
+        return [...prevMarkers, marker];
+      });
+      
 
-  const handleSearch = () => {
-    if (!map || !searchKeyword.trim()) return
+      // 주소 변환
+      const geocoder = new kakao.maps.services.Geocoder();
+      geocoder.coord2Address(lng, lat, async (result: any, status: any) => {
+        if (status !== kakao.maps.services.Status.OK) return;
+        const address = result[0].address.address_name;
+        const roadName = result[0].road_address?.building_name || address;
 
-    const { kakao } = window
-    const ps = new kakao.maps.services.Places()
+        setSelectedMarker({ lat, lng, name: roadName, address });
 
-    markers.forEach(m => m.setMap(null));
-    setMarkers([]);
+        try {
+          // AI 분석
+          const aiRes = await axios.post(`${process.env.NEXT_PUBLIC_FLASK_URL}/predict`, { lat, lng });
+          // 시설 분석
+          const facilityRes = await searchNearbyPlaces(latlng);
+          
+          console.log("@@!@@!! facilityRes:", facilityRes)
+          const newAnalysis: AnalysisData = {
+            subwayStations: facilityRes.subwayStations,
+            parkingLots: facilityRes.parkingLots,
+            banks: facilityRes.banks,
+            schools: facilityRes.schools,
+            hospitals: facilityRes.hospitals,
+            touristSpots: facilityRes.touristSpots,
+            culturalFacilities: facilityRes.culturalFacilities,
+            competitors: Number(`${aiRes.data["음식점경쟁업체수"].toFixed(1)}`),
+            pedestrians: `${aiRes.data["생활인구"].toFixed(1)}명`,
+            revenue: `${aiRes.data["임대료"].toFixed(1)}만원/㎡`,
+            category: currentBusinessType || "미분류",
+            score: Number(aiRes.data["점수"]).toFixed(1),
+          };
+        
+          setAnalysisList(prev => {
+            let updated = [...prev, { marker: { lat, lng, name: roadName, address }, analysis: newAnalysis }];
+            if (updated.length > 2) updated.shift(); 
+            return updated;
+          });
+        } catch (err) {
+          console.error("분석 오류:", err);
+        }
+      });
+    });
+  }, [isScriptLoaded, currentBusinessType]);
 
-    ps.keywordSearch(searchKeyword, (data: any, status: any) => {
-      if (status === kakao.maps.services.Status.OK) {
-        const bounds = new kakao.maps.LatLngBounds()
-
-        data.forEach((place: any) => {
-          const position = new kakao.maps.LatLng(place.y, place.x)
-          const marker = new kakao.maps.Marker({
-            position: position,
-            map: map,
-          })
-          bounds.extend(position)
-        })
-
-        map.setBounds(bounds)
-      }
-    })
-  }
+  // 시설 분석 함수
+  const searchNearbyPlaces = (position: any) => {
+    const { kakao } = window;
+    const ps = new kakao.maps.services.Places();
+  
+    // 카테고리 검색 함수
+    const countCategory = (category: string) =>
+      new Promise<number>((resolve) => {
+        ps.categorySearch(
+          category,
+          (data: any, status: any) =>
+            resolve(status === kakao.maps.services.Status.OK ? data.length : 0),
+          { location: position, radius: 300 }
+        );
+      });
+  
+    // 👇 필요한 시설 모두 검색
+    return Promise.all([
+      countCategory("SW8"), // 지하철역
+      countCategory("PK6"), // 주차장
+      countCategory("BK9"), // 은행
+      countCategory("SC4"), // 학교
+      countCategory("HP8"), // 병원
+      countCategory("AT4"), // 관광명소
+      countCategory("CT1"), // 문화시설
+    ]).then(([subwayStations, parkingLots, banks, schools, hospitals, touristSpots, culturalFacilities]) => ({
+      subwayStations,
+      parkingLots,
+      banks,
+      schools,
+      hospitals,
+      touristSpots,
+      culturalFacilities,
+    }));
+  };
+  
 
   return (
     <>
-      {hasApiKey && (
-        <Script
-          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY || "YOUR_APP_KEY"}&libraries=services&autoload=false`}
-          strategy="afterInteractive"
-          onLoad={() => {
-            window.kakao.maps.load(() => {
-              setIsScriptLoaded(true)
-            })
-          }}
-        />
-      )}
+      <Script
+        src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&libraries=services&autoload=false`}
+        strategy="afterInteractive"
+        onLoad={() => window.kakao.maps.load(() => setIsScriptLoaded(true))}
+      />
 
       <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-80px)]">
-        {/* Map Container */}
-        <div className="flex-1 relative">
-          {isDemoMode ? (
-            <div className="w-full h-full rounded-lg border shadow-lg bg-muted/30 flex items-center justify-center">
-              <div className="text-center p-8 max-w-md">
-                <div className="bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <MapPin className="h-10 w-10 text-primary" />
-                </div>
-                <h3 className="text-2xl font-bold mb-3">데모 모드</h3>
-                <p className="text-muted-foreground mb-6 text-balance">
-                  카카오 맵 API 키가 설정되지 않아 테스트 데이터를 표시합니다. 우측 패널에서 차트 기능을 체험해보세요.
-                </p>
-                <div className="bg-background border rounded-lg p-4 text-left">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <div className="text-sm">
-                      <p className="font-semibold mb-1">API 키 설정 방법</p>
-                      <p className="text-muted-foreground text-xs leading-relaxed">
-                        좌측 사이드바의 <strong>Vars</strong> 섹션에서 <br />
-                        <code className="bg-muted px-1 py-0.5 rounded text-xs">NEXT_PUBLIC_KAKAO_MAP_KEY</code> 값을
-                        입력하세요.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div ref={mapRef} className="w-full h-full rounded-lg border shadow-lg" />
-
-              {/* Search Bar Overlay */}
-              <div className="absolute top-4 left-4 right-4 z-10">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="지역, 주소 또는 장소를 검색하세요"
-                    value={searchKeyword}
-                    onChange={(e) => setSearchKeyword(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                    className="flex-1 px-4 py-3 rounded-lg border bg-background shadow-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <Button onClick={handleSearch} size="lg">
-                    검색
-                  </Button>
-                </div>
-              </div>
-
-              {/* Info Overlay */}
-              {!selectedMarker && (
-                <div className="absolute bottom-4 left-4 right-4 z-10">
-                  <Card className="bg-background/95 backdrop-blur">
-                    <CardContent className="p-4 text-center">
-                      <MapPin className="h-8 w-8 text-primary mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">지도를 클릭하여 상권 분석을 시작하세요</p>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-            </>
-          )}
+        <div className="flex-1">
+          <div ref={mapRef} className="w-full h-full rounded-lg border shadow-lg" />
         </div>
 
-        {/* Analysis Panel */}
-        <div className="lg:w-[480px] overflow-y-auto">
-          {selectedMarker && analysisData ? (
-            <Card>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-xl">{selectedMarker.name}</CardTitle>
-                    <CardDescription className="mt-1">{selectedMarker.address}</CardDescription>
-                    {isDemoMode && (
-                      <Badge variant="outline" className="mt-2 text-xs">
-                        테스트 데이터
-                      </Badge>
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsFavorite(!isFavorite)}
-                    className={cn(isFavorite && "text-red-500")}
-                  >
-                    <Heart className={cn("h-5 w-5", isFavorite && "fill-current")} />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Tabs defaultValue="scores">
-                  <TabsList className="w-full grid grid-cols-4">
-                    <TabsTrigger value="scores">
-                      <Award className="h-4 w-4 mr-1" />
-                      점수
-                    </TabsTrigger>
-                    <TabsTrigger value="overview">개요</TabsTrigger>
-                    <TabsTrigger value="charts">
-                      <BarChart3 className="h-4 w-4 mr-1" />
-                      차트
-                    </TabsTrigger>
-                    <TabsTrigger value="facilities">시설</TabsTrigger>
-                  </TabsList>
+       {/* Analysis Panel */}
+       <div className="lg:w-[480px] overflow-y-auto">
+  {analysisList.length > 0 ? (
+    analysisList.map((item, index) => (
+      <Card key={index} className="mb-4">
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+            <div className="text-xs font-medium text-muted-foreground mb-1">
+              {index === 0 ? "A 먼저 선택한 지점" : "B 뒤에 선택한 지점"}
+            </div>
+              <CardTitle className="text-xl">{item.marker.name}</CardTitle>
+              <CardDescription className="mt-1">{item.marker.address}</CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsFavorite(!isFavorite)}
+              className={cn(isFavorite && "text-red-500")}
+            >
+              <Heart className={cn("h-5 w-5", isFavorite && "fill-current")} />
+            </Button>
+          </div>
+        </CardHeader>
 
-                  <TabsContent value="scores" className="space-y-4 mt-4">
-                  {selectedMarker && analysisData && (
-  <>
-    <div className="text-5xl font-bold text-primary mb-2">
-      {Math.floor(Math.random() * 20) + 70} {/* 70~90 사이 랜덤 점수 */}
-    </div>
-    <p className="text-sm">{selectedMarker.address} 기준 분석 결과입니다.</p>
-  </>
-)}
+        <CardContent className="space-y-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="w-full grid grid-cols-4">
+              <TabsTrigger value="scores"><Award className="h-4 w-4 mr-1" />점수</TabsTrigger>
+              <TabsTrigger value="overview">개요</TabsTrigger>
+              <TabsTrigger value="charts"><BarChart3 className="h-4 w-4 mr-1" />차트</TabsTrigger>
+              <TabsTrigger value="facilities">시설</TabsTrigger>
+            </TabsList>
 
-                  </TabsContent>
+            {/* 점수 */}
+            <TabsContent value="scores" className="space-y-4 mt-4">
+              <div className="text-5xl font-bold text-primary mb-2">{item.analysis.score}점</div>
+              <p className="text-sm">{item.marker.address} 기준 분석 결과입니다.</p>
+            </TabsContent>
+
 
                   <TabsContent value="overview" className="space-y-3 mt-4">
                     <div className="grid grid-cols-2 gap-3">
@@ -494,7 +264,7 @@ export function KakaoMap({ selectedDong}: KakaoMapProps) {
                             <Users className="h-4 w-4 text-primary" />
                             <span className="text-xs text-muted-foreground">유동인구</span>
                           </div>
-                          <p className="text-lg font-bold">{analysisData.pedestrians}</p>
+                          <p className="text-lg font-bold">{item.analysis.pedestrians}</p>
                         </CardContent>
                       </Card>
                       <Card>
@@ -504,7 +274,7 @@ export function KakaoMap({ selectedDong}: KakaoMapProps) {
                             <span className="text-xs text-muted-foreground">평균 임대료</span>
                           </div>
                           {/* 임대료로 바꿔야함 */}
-                          <p className="text-lg font-bold">{analysisData.revenue}</p> 
+                          <p className="text-lg font-bold">{item.analysis.revenue}</p> 
                         </CardContent>
                       </Card>
                       <Card>
@@ -513,7 +283,7 @@ export function KakaoMap({ selectedDong}: KakaoMapProps) {
                             <Store className="h-4 w-4 text-accent" />
                             <span className="text-xs text-muted-foreground">경쟁업체</span>
                           </div>
-                          <p className="text-lg font-bold">{analysisData.competitors}개</p>
+                          <p className="text-lg font-bold">{ item.analysis.competitors}개</p>
                         </CardContent>
                       </Card>
                       <Card>
@@ -522,7 +292,7 @@ export function KakaoMap({ selectedDong}: KakaoMapProps) {
                             <MapPin className="h-4 w-4 text-primary" />
                             <span className="text-xs text-muted-foreground">업종</span>
                           </div>
-                          <p className="text-lg font-bold">{analysisData.category}</p>
+                          <p className="text-lg font-bold">{item.analysis.category}</p>
                         </CardContent>
                       </Card>
                     </div>
@@ -824,10 +594,10 @@ export function KakaoMap({ selectedDong}: KakaoMapProps) {
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
-                            <Bus className="h-5 w-5 text-primary" />
-                            <span className="font-semibold">버스 정류장</span>
+                              <Train className="h-5 w-5 text-primary" />
+                            <span className="font-semibold">지하철역</span>
                           </div>
-                          <Badge variant="secondary">{analysisData.busStops}개</Badge>
+                          <Badge variant="secondary">{item.analysis.subwayStations}개</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">반경 500m 내 버스 정류장 수</p>
                       </CardContent>
@@ -840,7 +610,7 @@ export function KakaoMap({ selectedDong}: KakaoMapProps) {
                             <ParkingCircle className="h-5 w-5 text-secondary" />
                             <span className="font-semibold">주차장</span>
                           </div>
-                          <Badge variant="secondary">{analysisData.parkingLots}개</Badge>
+                          <Badge variant="secondary">{item.analysis.parkingLots}개</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">인근 주차 시설 현황</p>
                       </CardContent>
@@ -850,10 +620,11 @@ export function KakaoMap({ selectedDong}: KakaoMapProps) {
                       <h4 className="font-semibold mb-2 text-sm">주변 편의시설</h4>
                       <div className="space-y-2">
                         {[
-                          { name: "지하철역", distance: "250m", count: 2 },
-                          { name: "은행", distance: "180m", count: 5 },
-                          { name: "학교", distance: "420m", count: 3 },
-                          { name: "병원", distance: "350m", count: 4 },
+                          { name: "은행", distance: "350m", count: item.analysis.banks || 5 },
+                          { name: "학교", distance: "350m", count: item.analysis.schools || 3 },
+                          { name: "병원", distance: "350m", count: item.analysis.hospitals || 4 },
+                          { name: "관광명소", distance: "350m", count: item.analysis.touristSpots || 4 },
+                          { name: "문화시설", distance: "350m", count: item.analysis.culturalFacilities || 4 },
                         ].map((facility, index) => (
                           <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded">
                             <div className="flex items-center gap-2">
@@ -877,24 +648,13 @@ export function KakaoMap({ selectedDong}: KakaoMapProps) {
                 </Button>
               </CardContent>
             </Card>
-          ) : (
+          ))
+        ) : (
             <Card>
               <CardContent className="p-8 text-center">
                 <MapPin className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="font-semibold mb-2">위치를 선택하세요</h3>
-                <p className="text-sm text-muted-foreground text-balance">
-                  {isDemoMode ? "API 키가 없어 데모 모드로 실행 중입니다" : "지도에서 관심 있는 위치를 클릭하면"}
-                  <br />
-                  {isDemoMode
-                    ? "우측 상단 버튼으로 테스트 데이터를 확인하세요"
-                    : "상세한 상권 분석 정보를 확인할 수 있습니다"}
-                </p>
-                {isDemoMode && (
-                  <Button onClick={showDemoData} className="mt-4" size="lg">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    테스트 차트 보기
-                  </Button>
-                )}
+                
               </CardContent>
             </Card>
           )}

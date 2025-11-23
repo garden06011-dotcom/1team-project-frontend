@@ -70,20 +70,20 @@ export default function HomePage() {
     },
     {
       icon: TrendingUp,
-      title: "실시간 매출 데이터",
-      description: "업종별, 지역별 매출 데이터로 성공적인 창업을 준비하세요",
+      title: "시각화 데이터",
+      description: "업종별, 지역별 데이터를 시각화하여 쉽게 확인하세요",
       gradient: "from-lime-500 to-green-500",
     },
     {
       icon: Users,
-      title: "유동인구 분석",
-      description: "시간대별, 요일별 유동인구 데이터로 최적의 입지를 찾으세요",
+      title: "커뮤니티",
+      description: "실제 창업자들의 생생한 경험과 정보를 나누세요",
       gradient: "from-green-500 to-emerald-500",
     },
     {
       icon: MessageSquare,
-      title: "커뮤니티 정보 공유",
-      description: "실제 창업자들의 생생한 경험과 정보를 나누세요",
+      title: "chat bot 상담",
+      description: "AI 챗봇으로 창업에 대한 질문을 무료로 상담받으세요",
       gradient: "from-teal-500 to-cyan-500",
     },
   ]
@@ -183,32 +183,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-20 bg-gradient-to-br from-muted/50 to-muted/30 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-            {stats.map((stat, index) => (
-              <Card
-                key={index}
-                className="text-center border-0 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 bg-card/80 backdrop-blur-sm"
-              >
-                <CardContent className="p-6 md:p-8">
-                  <div className="flex justify-center mb-4">
-                    <div className="p-3 bg-gradient-to-br from-primary to-secondary rounded-2xl">
-                      <stat.icon className="h-6 w-6 md:h-8 md:w-8 text-white" />
-                    </div>
-                  </div>
-                  <div className="text-3xl md:text-5xl font-bold text-primary mb-2">
-                    {stat.value}
-                    <span className="text-xl md:text-2xl text-muted-foreground ml-1">{stat.unit}</span>
-                  </div>
-                  <div className="text-sm md:text-base text-muted-foreground font-medium">{stat.label}</div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Features Section */}
       <section className="py-28 px-4">
@@ -249,95 +223,6 @@ export default function HomePage() {
                   </CardDescription>
                 </CardHeader>
               </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Features Highlight Section */}
-      <section className="py-24 px-4 bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">똑똑한 기능들</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto text-balance">
-              창업 성공을 위한 모든 기능이 준비되어 있습니다
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="hover:shadow-xl transition-all">
-              <CardContent className="p-8 text-center">
-                <div className="p-4 bg-red-100 text-red-600 rounded-2xl w-fit mx-auto mb-4">
-                  <Heart className="h-10 w-10" />
-                </div>
-                <h3 className="text-2xl font-bold mb-3">관심 지역 등록</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  마음에 드는 상권을 관심 지역으로 등록하고, 변화를 실시간으로 추적하세요
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-xl transition-all">
-              <CardContent className="p-8 text-center">
-                <div className="p-4 bg-blue-100 text-blue-600 rounded-2xl w-fit mx-auto mb-4">
-                  <Bell className="h-10 w-10" />
-                </div>
-                <h3 className="text-2xl font-bold mb-3">스마트 알림 서비스</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  관심 지역의 유동인구, 매출 변화 등 중요한 정보를 실시간으로 알려드립니다
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="hover:shadow-xl transition-all">
-              <CardContent className="p-8 text-center">
-                <div className="p-4 bg-primary/20 text-primary rounded-2xl w-fit mx-auto mb-4">
-                  <Bot className="h-10 w-10" />
-                </div>
-                <h3 className="text-2xl font-bold mb-3">AI 챗봇 상담</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  24시간 AI 챗봇이 창업 관련 궁금한 점을 즉시 답변해드립니다
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      <section className="py-28 px-4 bg-muted/30">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-6xl font-bold mb-6">간단한 4단계로 시작하세요</h2>
-            <p className="text-xl md:text-2xl text-muted-foreground">데이터 기반의 창업 결정을 지금 바로 시작하세요</p>
-          </div>
-
-          <div className="grid md:grid-cols-4 gap-8 relative">
-            {[
-              { step: "1", title: "회원가입", description: "간편하게 가입하고 시작하세요", icon: Users },
-              { step: "2", title: "조건 선택", description: "AI가 맞춤 입지를 추천합니다", icon: Target },
-              { step: "3", title: "데이터 확인", description: "상세한 상권 분석을 확인하세요", icon: BarChart3 },
-              { step: "4", title: "성공 창업", description: "데이터 기반으로 시작하세요", icon: Award },
-            ].map((item, index) => (
-              <div key={index} className="relative text-center group">
-                <Card className="border-0 shadow-lg hover:shadow-2xl transition-all hover:-translate-y-2 bg-card/80 backdrop-blur-sm">
-                  <CardContent className="p-8">
-                    <div className="mb-6 flex justify-center">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary to-secondary rounded-full blur-lg opacity-50 group-hover:opacity-75 transition-opacity"></div>
-                        <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform">
-                          <item.icon className="h-10 w-10" />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-5xl font-bold text-primary/20 mb-2">{item.step}</div>
-                    <h3 className="text-2xl font-semibold mb-3">{item.title}</h3>
-                    <p className="text-muted-foreground text-base">{item.description}</p>
-                  </CardContent>
-                </Card>
-                {index < 3 && (
-                  <div className="hidden md:block absolute top-12 left-[calc(50%+2.5rem)] w-[calc(100%-5rem)] h-0.5 bg-gradient-to-r from-primary to-secondary opacity-20" />
-                )}
-              </div>
             ))}
           </div>
         </div>
@@ -408,40 +293,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="relative py-28 px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary via-secondary to-accent"></div>
-        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 text-balance">지금 바로 시작하세요</h2>
-          <p className="text-xl md:text-2xl text-white/90 mb-12 text-balance">
-            AI 기반 맞춤 입지 추천으로 성공적인 창업을 준비하세요
-          </p>
-          <div className="flex flex-col sm:flex-row gap-5 justify-center">
-            <Button
-              size="lg"
-              variant="secondary"
-              className="min-w-[240px] text-lg h-14 shadow-2xl hover:shadow-3xl transition-all hover:scale-105"
-              asChild
-            >
-              <Link href="/user/signup">
-                <Sparkles className="mr-2 h-5 w-5" />
-                무료 회원가입
-              </Link>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="min-w-[240px] text-lg h-14 bg-white/10 border-white/30 text-white hover:bg-white/20 backdrop-blur-sm shadow-2xl hover:shadow-3xl transition-all hover:scale-105"
-              asChild
-            >
-              <Link href="/map">
-                AI 입지 추천 체험
-                <ChevronRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
 
       {/* Footer */}
       <footer className="bg-muted/60 py-16 px-4 border-t">

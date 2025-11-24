@@ -1,6 +1,6 @@
 "use client"
 
-import { useAuth } from "@/src/lib/auth-context"
+import { useAuthStore } from "@/src/stores/authStore"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/src/components/ui/card"
@@ -43,7 +43,7 @@ type FilterType = "all" | "cafe" | "fashion" | "it" | "food"
 type SortType = "recent" | "score" | "name"
 
 export default function MyPagePage() {
-  const { user, logout, isLoading } = useAuth()
+  const { user, logout, isLoggedIn } = useAuthStore()
   const router = useRouter()
   const searchParams = useSearchParams()
   const defaultTab = searchParams.get("tab") || "profile"
@@ -51,6 +51,7 @@ export default function MyPagePage() {
   const [filterCategory, setFilterCategory] = useState<FilterType>("all")
   const [sortBy, setSortBy] = useState<SortType>("recent")
   const { toast } = useToast()
+  const isLoading = false // authStore는 즉시 로드되므로 로딩 상태 불필요
 
 type MyPost = {
   id: number
@@ -67,8 +68,8 @@ const [loadingPosts, setLoadingPosts] = useState(false)
 
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [profileData, setProfileData] = useState({
-    name: user?.name || "",
-    email: user?.email || user?.user_id || "",
+    name: user?.nickname || "",
+    email: user?.email || "",
     phone: "010-1234-5678",
     business: "",
     bio: "간단히 소개글을 입력해주세요.",
@@ -79,19 +80,19 @@ const [loadingPosts, setLoadingPosts] = useState(false)
     if (user) {
       setProfileData(prev => ({
         ...prev,
-        name: user.name || prev.name,
-        email: user.email || user.user_id || prev.email,
+        name: user.nickname || prev.name,
+        email: user.email || prev.email,
       }))
     }
   }, [user])
 
 
   const fetchPosts = async () => {
-    if (!user?.user_id) return
+    if (!user?.email) return
     
     try {
       setLoadingPosts(true)
-      const response = await API.get(`/board/user/${user.user_id}`)
+      const response = await API.get(`/board/user/${user.email}`)
       const fetchedPosts: MyPost[] = (response.data?.data ?? []).map((post: any) => ({
         id: post.idx,
         title: post.title ?? "제목 없음",
@@ -112,10 +113,10 @@ const [loadingPosts, setLoadingPosts] = useState(false)
   }
 
   useEffect(() => {
-    if (user?.user_id) {
+    if (user?.email) {
       fetchPosts()
     }
-  }, [user?.user_id])
+  }, [user?.email])
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -221,10 +222,10 @@ const [loadingPosts, setLoadingPosts] = useState(false)
   }
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!isLoggedIn || !user) {
       router.push("/user/login")
     }
-  }, [user, isLoading, router])
+  }, [isLoggedIn, user, router])
 
   const handleSaveProfile = () => {
     setIsEditingProfile(false)
@@ -333,12 +334,12 @@ const [loadingPosts, setLoadingPosts] = useState(false)
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
             <Avatar className="h-28 w-28 border-4 border-primary/20 shadow-lg">
               <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-primary-foreground text-4xl font-bold">
-                {user.name[0]}
+                {user.nickname?.[0] || user.email?.[0] || 'U'}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-3">
-                <h1 className="text-3xl font-bold">{user.name}</h1>
+                <h1 className="text-3xl font-bold">{user.nickname || user.email}</h1>
                 <Badge variant="secondary" className="text-sm px-3 py-1 shadow-sm">
                   {user.role === "admin" ? "관리자" : "일반회원"}
                 </Badge>
@@ -354,8 +355,8 @@ const [loadingPosts, setLoadingPosts] = useState(false)
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={() => {
-                    logout();
+                  onClick={async () => {
+                    await logout();
                     router.push('/user/login');
                   }} 
                   className="shadow-sm bg-background hover:bg-muted"

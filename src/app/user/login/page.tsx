@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuthStore } from "@/src/stores/authStore"
@@ -20,8 +20,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { login } = useAuthStore()
+  const { login, isLoggedIn, accessToken } = useAuthStore()
   const router = useRouter()
+
+  // 이미 로그인되어 있고 토큰이 있으면 마이페이지로 리다이렉트
+  useEffect(() => {
+    if (isLoggedIn && accessToken) {
+      router.push("/user/mypage");
+    }
+  }, [isLoggedIn, accessToken, router])
 
   const [emailErr, setEmailErr] = useState("");
   const [passwordErr, setPasswordErr] = useState("");

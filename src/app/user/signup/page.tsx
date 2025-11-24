@@ -26,7 +26,7 @@ export default function SignupPage() {
   const [nickname, setNickname] = useState<string>("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false);
-  const [birth, setBirth] = useState("")  // YYYYMMDD
+  const [birth, setBirth] = useState("")  // YYMMDD (주민번호 앞 6자리)
   const [genderDigit, setGenderDigit] = useState(""); // "1" | "2" | "3" | "4"
 
 
@@ -166,7 +166,7 @@ export default function SignupPage() {
       return;
     }
     if(!PasswordVal(passwordValue)) {
-      setPasswordErr("비밀번호는 8자 이상 및 특수문자를 포함해야 합니다.")
+      setPasswordErr("비밀번호는 영문 대소문자, 숫자, 특수문자를 포함한 8자 이상 20자 이하로 입력해주세요.")
       return;
     } else {
       setPasswordErr("")
@@ -229,22 +229,41 @@ export default function SignupPage() {
 // [추가] util 함수들
 const onlyDigits = (s: string) => s.replace(/\D/g, "");
 
-const clampBirth = (s: string) => onlyDigits(s).slice(0, 8); // YYYYMMDD 최대 8자리
+const clampBirth = (s: string) => onlyDigits(s).slice(0, 6); // YYMMDD 최대 6자리
 
-const isValidYyyymmdd = (yyyymmdd: string) => {
-  if (yyyymmdd.length !== 8) return false;
-  const y = parseInt(yyyymmdd.slice(0, 4), 10);
-  const m = parseInt(yyyymmdd.slice(4, 6), 10);
-  const d = parseInt(yyyymmdd.slice(6, 8), 10);
-  if (y < 1900 || y > 2100) return false;
-  if (m < 1 || m > 12) return false;
-  const daysInMonth = new Date(y, m, 0).getDate(); // 해당 월의 마지막 날
+const isValidYymmdd = (yymmdd: string) => {
+  if (yymmdd.length !== 6) return false;
+  const yy = parseInt(yymmdd.slice(0, 2), 10);
+  const mm = parseInt(yymmdd.slice(2, 4), 10);
+  const d = parseInt(yymmdd.slice(4, 6), 10); // 수정: slice(4, 6)으로 변경
+  if (yy < 0 || yy > 99) return false;
+  if (mm < 1 || mm > 12) return false;
+  if (d < 1 || d > 31) return false; // 기본 범위 체크
+  // 실제 날짜 유효성 검사 (윤년, 월별 일수 고려)
+  const daysInMonth = new Date(2000 + yy, mm, 0).getDate(); // 2000년 기준으로 계산 (YY를 20YY로 해석)
   return d >= 1 && d <= daysInMonth;
 };
 
-const allowedGenderDigits = (yyyymmdd: string): ("1"|"2"|"3"|"4")[] => {
-  if (yyyymmdd.length < 8 || !isValidYyyymmdd(yyyymmdd)) return ["1","2","3","4"];
-  return yyyymmdd >= "20000101" ? ["3","4"] : ["1","2"];
+const allowedGenderDigits = (yymmdd: string): ("1"|"2"|"3"|"4")[] => {
+  if (yymmdd.length < 6 || !isValidYymmdd(yymmdd)) return ["1","2","3","4"];
+  // 주민번호 규칙:
+  // - 1900년대 출생 (YY: 00~99 중에서 실제로는 00~23 정도가 2000년대, 24~99는 1900년대로 해석 가능)
+  // - 2000년 이후 출생자는 3(남), 4(여)만 사용
+  // - 1999년 이전 출생자는 1(남), 2(여)만 사용
+  // 
+  // YYMMDD 형식에서 YY가 00~23이면 2000~2023년으로 해석 (3,4만 허용)
+  // YY가 24~99이면 1924~1999년으로 해석 (1,2만 허용)
+  // 하지만 실제로는 사용자가 선택할 수 있도록 둘 다 허용하는 것이 더 유연함
+  // 여기서는 간단히 모든 경우에 1,2,3,4 모두 허용하되, 에러 메시지만 표시
+  // 또는 더 엄격하게: YY < 24면 3,4만, YY >= 24면 1,2만
+  const yy = parseInt(yymmdd.slice(0, 2), 10);
+  // 2000년 이후 출생 (YY: 00~23)은 3,4만 허용
+  // 1999년 이전 출생 (YY: 24~99)은 1,2만 허용
+  if (yy >= 0 && yy <= 23) {
+    return ["3", "4"]; // 2000~2023년 출생
+  } else {
+    return ["1", "2"]; // 1924~1999년 출생 (또는 2024~2099년 출생도 1,2 사용 가능)
+  }
 };
 
 const genderFromDigit = (digit: "1"|"2"|"3"|"4") => (digit === "1" || digit === "3" ? "M" : "F");
@@ -257,12 +276,12 @@ const handleBirthChange = (e: ChangeEvent<HTMLInputElement>) => {
   const next = clampBirth(e.target.value);
   setBirth(next);
 
-  // 유효성
+  // 유효성 검사
   if (next.length === 0) {
     setBirthErr("생년월일을 입력하세요.");
-  } else if (next.length < 8) {
-    setBirthErr("8자리로 입력하세요. 예: 19991231");
-  } else if (!isValidYyyymmdd(next)) {
+  } else if (next.length < 6) {
+    setBirthErr("6자리로 입력하세요. 예: 000415");
+  } else if (!isValidYymmdd(next)) { // 수정: next 전체를 전달
     setBirthErr("유효한 날짜가 아닙니다.");
   } else {
     setBirthErr("");
@@ -272,6 +291,7 @@ const handleBirthChange = (e: ChangeEvent<HTMLInputElement>) => {
   const allow = allowedGenderDigits(next);
   if (genderDigit && !allow.includes(genderDigit as any)) {
     setGenderDigit("");
+    setGenderErr(""); // 성별 에러도 초기화
   }
 };
 
@@ -279,7 +299,7 @@ const handleBirthChange = (e: ChangeEvent<HTMLInputElement>) => {
 const handleGenderDigitChange = (e: ChangeEvent<HTMLInputElement>) => {
   const inputValue = e.target.value;
   const digit = onlyDigits(inputValue).slice(0, 1);
-  const allow = allowedGenderDigits(birth) as string[];
+  const allow = allowedGenderDigits(birth) as string[]; // 수정: birth 전체를 전달
   
   // 빈 값이면 그대로 설정
   if (!digit) {
@@ -290,9 +310,10 @@ const handleGenderDigitChange = (e: ChangeEvent<HTMLInputElement>) => {
   
   // 허용 범위 체크
   if (!allow.includes(digit)) {
+    const yy = parseInt(birth.slice(0, 2), 10);
     setGenderErr(
-      birth && isValidYyyymmdd(birth)
-        ? birth >= "20000101"
+      birth && isValidYymmdd(birth)
+        ? yy >= 0
           ? "2000년생 이후는 3(남) 또는 4(여)만 가능합니다."
           : "1999년생 이전은 1(남) 또는 2(여)만 가능합니다."
         : "생년월일을 올바르게 입력하세요."
@@ -307,15 +328,13 @@ const handleGenderDigitChange = (e: ChangeEvent<HTMLInputElement>) => {
   setGenderErr("");
 };
 
-// [참고] 전송/저장 시 가공 예시
+// [참고] 전송/저장 시 가공 예시 주민번호
 const payloadPreview = useMemo(() => {
-  if (birth.length === 8 && isValidYyyymmdd(birth) && ["1","2","3","4"].includes(genderDigit)) {
-    const yyyy = birth.slice(0,4);
-    const mm   = birth.slice(4,6);
-    const dd   = birth.slice(6,8);
+    if (birth.length === 6 && isValidYymmdd(birth) && ["1","2","3","4"].includes(genderDigit)) {
+    const yy = birth.slice(0,2);
     const gender = genderFromDigit(genderDigit as "1"|"2"|"3"|"4"); // "M" | "F"
     return {
-      birthISO: `${yyyy}-${mm}-${dd}`, // "1999-12-31"
+      birth: birth, // "000415" (YYMMDD 형식)
       genderDigit,                     // "1"|"2"|"3"|"4"
       gender,                          // "M"|"F"
     };
@@ -542,10 +561,10 @@ const payloadPreview = useMemo(() => {
                   id="birth"
                   type="text"
                   inputMode="numeric"
-                  placeholder="예: 20010415"
+                  placeholder="예: 000415"
                   value={birth}
                   onChange={handleBirthChange}
-                  maxLength={8}
+                  maxLength={6}
                   className="pl-10"
                   required
                 />

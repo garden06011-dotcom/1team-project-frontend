@@ -120,8 +120,8 @@ export function Header() {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
-                    onClick={() => {
-                      logout();
+                    onClick={async () => {
+                      await logout();
                       router.push('/user/login');
                     }} 
                     className="cursor-pointer text-destructive focus:text-destructive"

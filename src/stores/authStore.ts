@@ -31,7 +31,7 @@ const getTokenFromStore = () => {
     return { accessToken: null, refreshToken: null }
 }
 
-type AuthState = {
+export type AuthState = {
     user: User | null
     accessToken: string | null
     refreshToken: string | null

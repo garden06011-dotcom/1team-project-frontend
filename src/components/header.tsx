@@ -67,6 +67,10 @@ export function Header() {
             <>
               <Button variant="ghost" size="icon" className="relative hover:bg-primary/10" asChild>
                 <Link href="/user/mypage?tab=notifications">
+                  {/* <div className="text-lg font-medium mr-150 hover:opacity-80 transition-opacity w-100 hover:default text-center cursor-default">
+                    <strong>{user?.nickname || user?.email}</strong> 
+                    님 환영합니다
+                  </div> */}
                   <Bell className="h-5 w-5" />
                   <Badge
                     variant="destructive"
@@ -103,7 +107,7 @@ export function Header() {
                       마이페이지
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
+                  {/* <DropdownMenuItem asChild>
                     <Link href="/user/mypage?tab=favorites" className="cursor-pointer">
                       <Heart className="mr-2 h-4 w-4" />
                       관심 지역
@@ -111,7 +115,7 @@ export function Header() {
                         3
                       </Badge>
                     </Link>
-                  </DropdownMenuItem>
+                  </DropdownMenuItem> */}
                   <DropdownMenuItem asChild>
                     <Link href="/settings" className="cursor-pointer">
                       <Settings className="mr-2 h-4 w-4" />

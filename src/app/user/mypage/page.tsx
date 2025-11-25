@@ -2,7 +2,7 @@
 
 import { useAuthStore } from "@/src/stores/authStore"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent } from "@/src/components/ui/card"
 import { Button } from "@/src/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/components/ui/tabs"
@@ -65,6 +65,10 @@ type MyPost = {
 
 const [posts, setPosts] = useState<MyPost[]>([])
 const [loadingPosts, setLoadingPosts] = useState(false)
+const POSTS_PER_PAGE = 5
+const [postPage, setPostPage] = useState(1)
+const [postTotalPages, setPostTotalPages] = useState(1)
+const [postTotalCount, setPostTotalCount] = useState(0)
 
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [profileData, setProfileData] = useState({
@@ -87,13 +91,19 @@ const [loadingPosts, setLoadingPosts] = useState(false)
   }, [user])
 
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async (targetPage: number) => {
     if (!user?.email) return
     
     try {
       setLoadingPosts(true)
-      const response = await API.get(`/board/user/${user.email}`)
-      const fetchedPosts: MyPost[] = (response.data?.data ?? []).map((post: any) => ({
+      const response = await API.get(`/board/user/${user.email}`, {
+        params: {
+          page: targetPage,
+          limit: POSTS_PER_PAGE,
+        },
+      })
+      const { data = [], pagination } = response.data ?? {}
+      const fetchedPosts: MyPost[] = data.map((post: any) => ({
         id: post.idx,
         title: post.title ?? "제목 없음",
         category: post.category ?? "카테고리 미지정",
@@ -105,24 +115,37 @@ const [loadingPosts, setLoadingPosts] = useState(false)
           : "",
       }))
       setPosts(fetchedPosts)
+      if (pagination) {
+        setPostTotalPages(pagination.totalPages ?? 1)
+        setPostTotalCount(pagination.totalCount ?? fetchedPosts.length)
+      } else {
+        setPostTotalPages(1)
+        setPostTotalCount(fetchedPosts.length)
+      }
     } catch (error: any) {
       console.error(error);
     } finally {
       setLoadingPosts(false);
     }
-  }
+  }, [user?.email])
+
+  useEffect(() => {
+    if (!user?.email) return
+    setPostPage(1)
+  }, [user?.email])
 
   useEffect(() => {
     if (user?.email) {
-      fetchPosts()
+      fetchPosts(postPage)
     }
-  }, [user?.email])
+  }, [user?.email, postPage, fetchPosts])
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   })
+  const [isWithdrawing, setIsWithdrawing] = useState(false)
 
   const [favorites, setFavorites] = useState([
     {
@@ -221,6 +244,27 @@ const [loadingPosts, setLoadingPosts] = useState(false)
     return `${diffDays}일 전`
   }
 
+  const handlePostPageChange = (nextPage: number) => {
+    if (loadingPosts) return
+    if (nextPage < 1 || nextPage > postTotalPages || nextPage === postPage) return
+    setPostPage(nextPage)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  const getPostPageNumbers = () => {
+    const pagesPerGroup = 5
+    const pages: number[] = []
+    const currentGroup = Math.ceil(postPage / pagesPerGroup)
+    const startPage = (currentGroup - 1) * pagesPerGroup + 1
+    const endPage = Math.min(currentGroup * pagesPerGroup, postTotalPages)
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i)
+    }
+
+    return pages
+  }
+
   useEffect(() => {
     if (!isLoggedIn || !user) {
       router.push("/user/login")
@@ -268,6 +312,31 @@ const [loadingPosts, setLoadingPosts] = useState(false)
       title: "비밀번호 변경 완료",
       description: "비밀번호가 성공적으로 변경되었습니다.",
     })
+  }
+
+  const handleDeactivateAccount = async () => {
+    const confirmed = window.confirm("정말 탈퇴하시겠습니까? 계정이 비활성화되면 다시 로그인할 수 없습니다.")
+    if (!confirmed) return
+
+    try {
+      setIsWithdrawing(true)
+      await API.post("/user/withdraw")
+      toast({
+        title: "계정 비활성화 완료",
+        description: "다시 이용하려면 고객센터를 통해 문의해주세요.",
+      })
+      await logout()
+      router.push("/")
+    } catch (error: any) {
+      console.error(error)
+      toast({
+        title: "계정 비활성화 실패",
+        description: error.response?.data?.message || "잠시 후 다시 시도해주세요.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsWithdrawing(false)
+    }
   }
 
   if (isLoading || !user) {
@@ -323,7 +392,7 @@ const [loadingPosts, setLoadingPosts] = useState(false)
     // { label: "관심 지역", value: favorites.length, icon: Heart, color: "text-red-500" },
     { label: "작성 글", value: posts.length, icon: FileText, color: "text-blue-500" },
     // { label: "알림", value: unreadCount, icon: Bell, color: "text-primary" },
-    { label: "분석 횟수", value: 23, icon: TrendingUp, color: "text-secondary" },
+    // { label: "분석 횟수", value: 23, icon: TrendingUp, color: "text-secondary" },
   ]
 
   return (
@@ -461,7 +530,7 @@ const [loadingPosts, setLoadingPosts] = useState(false)
                   <div className="space-y-2">
                     <Label htmlFor="name" className="text-sm font-medium flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
-                      이름 / 닉네임
+                      닉네임
                     </Label>
                     <Input
                       id="name"
@@ -484,18 +553,19 @@ const [loadingPosts, setLoadingPosts] = useState(false)
                     <Input
                       id="email"
                       type="email"
+                      readOnly
                       value={profileData.email}
                       onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
                       disabled={!isEditingProfile}
                       className={cn(
-                        "h-11 transition-all",
+                        "h-11 transition-all cursor-not-allowed bg-muted/50",
                         isEditingProfile && "border-primary/50 bg-background",
                         !isEditingProfile && "bg-muted/50",
                       )}
                     />
                   </div>
 
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <Label htmlFor="phone" className="text-sm font-medium flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
                       연락처
@@ -511,9 +581,9 @@ const [loadingPosts, setLoadingPosts] = useState(false)
                         !isEditingProfile && "bg-muted/50",
                       )}
                     />
-                  </div>
+                  </div> */}
 
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <Label htmlFor="business" className="text-sm font-medium flex items-center gap-2">
                       <Briefcase className="h-4 w-4 text-muted-foreground" />
                       업종
@@ -529,10 +599,10 @@ const [loadingPosts, setLoadingPosts] = useState(false)
                         !isEditingProfile && "bg-muted/50",
                       )}
                     />
-                  </div>
+                  </div> */}
                 </div>
 
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
                   <Label htmlFor="bio" className="text-sm font-medium">
                     소개
                   </Label>
@@ -547,13 +617,13 @@ const [loadingPosts, setLoadingPosts] = useState(false)
                       !isEditingProfile && "bg-muted/50",
                     )}
                   />
-                </div>
+                </div> */}
               </div>
             </CardContent>
           </Card>
 
           {/* Password Change Card */}
-          <Card className="border-2 border-primary/10">
+          <Card className="border-2 border-primary/10 w-full">
             <CardContent className="p-6">
               <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <Lock className="h-5 w-5 text-primary" />
@@ -608,8 +678,9 @@ const [loadingPosts, setLoadingPosts] = useState(false)
                   비밀번호 변경
                 </Button>
               </div>
+  
             </CardContent>
-          </Card>
+          </Card>   
         </TabsContent>
 
         <TabsContent value="favorites" className="space-y-6">
@@ -776,57 +847,98 @@ const [loadingPosts, setLoadingPosts] = useState(false)
               </CardContent>
             </Card>
           ) : (
-            posts.map((post) => (
-              <Card
-                key={post.id}
-                className="hover:shadow-xl transition-all cursor-pointer border-2 border-primary/10 hover:border-primary/30"
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-3">
-                        <Badge variant="secondary" className="text-sm px-3 py-1 shadow-sm">
-                          {post.category}
-                        </Badge>
-                        <span className="text-sm text-muted-foreground">{post.createdAt}</span>
+            <>
+              {posts.map((post) => (
+                <Card
+                  key={post.id}
+                  className="hover:shadow-xl transition-all cursor-pointer border-2 border-primary/10 hover:border-primary/30"
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <Badge variant="secondary" className="text-sm px-3 py-1 shadow-sm">
+                            {post.category}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">{post.createdAt}</span>
+                        </div>
+                        <h3 className="font-bold text-xl mb-4 hover:text-primary transition-colors">{post.title}</h3>
+                        <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Eye className="h-4 w-4" /> {post.views}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Heart className="h-4 w-4" /> {post.likes}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MessageSquare className="h-4 w-4" /> {post.comments}
+                          </span>
+                        </div>
                       </div>
-                      <h3 className="font-bold text-xl mb-4 hover:text-primary transition-colors">{post.title}</h3>
-                      <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Eye className="h-4 w-4" /> {post.views}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Heart className="h-4 w-4" /> {post.likes}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MessageSquare className="h-4 w-4" /> {post.comments}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Button size="sm" variant="outline" className="shadow-sm bg-background" asChild>
-                        <Link href={`/board/${post.id}`}>보기</Link>
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="shadow-sm bg-background"
-                        onClick={() => router.push(`/board/edit/${post.id}`)}
+                      <div className="flex flex-col gap-2">
+                        <Button size="sm" variant="outline" className="shadow-sm bg-background" asChild>
+                          <Link href={`/board/${post.id}`}>보기</Link>
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="shadow-sm bg-background"
+                          onClick={() => router.push(`/board/edit/${post.id}`)}
+                          >
+                          수정
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="shadow-sm bg-background hover:bg-destructive hover:text-destructive-foreground"
                         >
-                        수정
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="shadow-sm bg-background hover:bg-destructive hover:text-destructive-foreground"
-                      >
-                        삭제
-                      </Button>
+                          삭제
+                        </Button>
+                      </div>
                     </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {postTotalPages > 1 && (
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-6">
+                  {/* <p className="text-sm text-muted-foreground">
+                    총 {postTotalCount.toLocaleString()}개 게시글 · {postPage}/{postTotalPages} 페이지
+                  </p> */}
+                  <div className="w-full flex items-center justify-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePostPageChange(postPage - 1)}
+                      disabled={postPage === 1 || loadingPosts}
+                      className="min-w-[70px]"
+                    >
+                      이전
+                    </Button>
+                    {getPostPageNumbers().map((pageNumber) => (
+                      <Button
+                        key={pageNumber}
+                        variant={pageNumber === postPage ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handlePostPageChange(pageNumber)}
+                        disabled={loadingPosts}
+                      >
+                        {pageNumber}
+                      </Button>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePostPageChange(postPage + 1)}
+                      disabled={postPage === postTotalPages || loadingPosts}
+                      className="min-w-[70px]"
+                    >
+                      다음
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-            ))
+                </div>
+              )}
+            </>
           )}
         </TabsContent>
 

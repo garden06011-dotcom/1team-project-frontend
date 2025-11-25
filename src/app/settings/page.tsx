@@ -1,7 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/src/lib/auth-context"
+import API from "@/src/api/axiosApi"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src/components/ui/card"
 import { Button } from "@/src/components/ui/button"
 import { Input } from "@/src/components/ui/input"
@@ -11,13 +13,33 @@ import { Separator } from "@/src/components/ui/separator"
 import { Bell, Mail, MapPin, Shield, User } from "lucide-react"
 
 export default function SettingsPage() {
-  const { user } = useAuth()
+  const router = useRouter()
+  const { user, logout } = useAuth()
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
     favorites: true,
     community: false,
   })
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleDeactivateAccount = async () => {
+    const confirmed = window.confirm("계정을 비활성화하시겠습니까? 로그인할 수 없게 됩니다.")
+    if (!confirmed) return
+
+    try {
+      setIsDeleting(true)
+      await API.post("/user/withdraw")
+      alert("계정이 비활성화되었습니다.")
+      await logout()
+      router.push("/")
+    } catch (error) {
+      console.error(error)
+      alert("계정 비활성화에 실패했습니다. 잠시 후 다시 시도해주세요.")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   if (!user) {
     return null
@@ -164,7 +186,9 @@ export default function SettingsPage() {
             <CardDescription>계정을 삭제하면 모든 데이터가 영구적으로 삭제됩니다</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="destructive">계정 삭제하기</Button>
+            <Button variant="destructive" onClick={handleDeactivateAccount} disabled={isDeleting}>
+              {isDeleting ? "처리 중..." : "계정 비활성화"}
+            </Button>
           </CardContent>
         </Card>
       </div>

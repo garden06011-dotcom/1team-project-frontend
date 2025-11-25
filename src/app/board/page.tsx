@@ -140,21 +140,6 @@ export default function CommunityPage() {
     setPage(1)
   }
 
-  // const filteredPosts = mockPosts
-  //   .filter((post) => {
-  //     const matchesSearch =
-  //       post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-  //       post.content.toLowerCase().includes(searchQuery.toLowerCase())
-  //     const matchesCategory =
-  //       selectedCategory === "all" || selectedCategory === "전체" || post.category === selectedCategory
-  //     return matchesSearch && matchesCategory
-  //   })
-  //   .sort((a, b) => {
-  //     if (sortBy === "latest") return b.createdAt.getTime() - a.createdAt.getTime()
-  //     if (sortBy === "popular") return b.views - a.views
-  //     if (sortBy === "likes") return b.likes - a.likes
-  //     return 0
-  //   })
 
   return (
     <div className="container mx-auto p-4 max-w-7xl">

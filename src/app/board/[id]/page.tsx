@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useEffect, useMemo, useState, useRef } from "react"
+import { use, useEffect, useMemo, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/src/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card"
@@ -56,44 +56,87 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   const [error, setError] = useState<string | null>(null)
   const [likeLoading, setLikeLoading] = useState(false)
   const [commentLoading, setCommentLoading] = useState(false)
+  const COMMENTS_PER_PAGE = 5
+  const [commentPage, setCommentPage] = useState(1)
+  const [commentTotalPages, setCommentTotalPages] = useState(1)
+  const [commentTotalCount, setCommentTotalCount] = useState(0)
+  const [commentsLoading, setCommentsLoading] = useState(false)
 
 
-  const hasFetched = useRef(false)
-
-
-  useEffect(() => {
-    const fetchPost = async () => {
+  const fetchPost = useCallback(
+    async (
+      targetPage: number,
+      options: { showFullLoading?: boolean } = {}
+    ) => {
+      if (!id) return
+      const { showFullLoading = false } = options
       try {
-        setLoading(true)
-        setError(null)
+        if (showFullLoading) {
+          setLoading(true)
+        } else {
+          setCommentsLoading(true)
+        }
         const response = await API.get(`/board/${id}`, {
           params: {
-            user_id: user?.user_id ?? '', // ✅ 로그인한 유저 정보 전달
-          }
+            user_id: user?.user_id ?? "",
+            commentPage: targetPage,
+            commentLimit: COMMENTS_PER_PAGE,
+          },
         })
-        setPost(response.data.data)
-        // ✅ 백엔드에서 내려준 isLiked 로 상태 설정
-        if (typeof response.data.data.isLiked === 'boolean') {
-          setIsLiked(response.data.data.isLiked)
+        const data = response.data?.data
+        if (data) {
+          setPost(data)
+          setIsLiked(Boolean(data.isLiked))
+          const pagination = response.data?.commentPagination
+          const safePage = pagination?.currentPage ?? targetPage
+          setCommentTotalPages(pagination?.totalPages ?? 1)
+          setCommentTotalCount(pagination?.totalCount ?? data.comments?.length ?? 0)
+          setCommentPage(safePage)
         }
+        setError(null)
       } catch (err: any) {
         console.error(err)
         setError(err.response?.data?.message || "게시글을 불러오지 못했습니다.")
       } finally {
-        setLoading(false)
+        if (showFullLoading) {
+          setLoading(false)
+        } else {
+          setCommentsLoading(false)
+        }
       }
-    }
+    },
+    [id, user?.user_id]
+  )
 
-    if (!id) return;
-    if (hasFetched.current) return; // 두번째 실행이면 스킵
-    hasFetched.current = true; // 첫번째 실행 후 플래그 설정, 첫 실행만 true로 설정
-      fetchPost()
-    
-  }, [id, user?.user_id])
+  useEffect(() => {
+    if (!id) return
+    fetchPost(1, { showFullLoading: true })
+  }, [id, fetchPost])
 
   const tags = useMemo(() => (post?.tags ? post.tags.split(",").map((tag) => tag.trim()).filter(Boolean) : []), [post?.tags])
   const commentList = post?.comments ?? []
   const authorInitial = post?.users?.nickname?.[0] ?? "U"
+  const commentsCount = commentTotalCount ?? post?.comments_count ?? 0
+
+  const handleCommentPageChange = (nextPage: number) => {
+    if (commentsLoading) return
+    if (nextPage < 1 || nextPage > commentTotalPages) return
+    if (nextPage === commentPage) return
+    setCommentPage(nextPage)
+    fetchPost(nextPage)
+  }
+
+  const getCommentPageNumbers = () => {
+    const pagesPerGroup = 5
+    const pages: number[] = []
+    const currentGroup = Math.ceil(commentPage / pagesPerGroup)
+    const startPage = (currentGroup - 1) * pagesPerGroup + 1
+    const endPage = Math.min(currentGroup * pagesPerGroup, commentTotalPages)
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i)
+    }
+    return pages
+  }
 
 
 
@@ -179,11 +222,8 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
         if (response.data?.data) {
           setPost((prev) => prev ? { ...prev, comments_count: (prev.comments_count ?? 0) + 1 } : null);
           setCommentText("")
-          // 댓글 목록 새로고침
-          const updatedResponse = await API.get(`/board/${id}`)
-          if (updatedResponse.data?.data) {
-            setPost(updatedResponse.data.data)
-          }
+          setCommentPage(1)
+          await fetchPost(1)
         }
       } catch (error: any) {
         console.error(error);
@@ -215,11 +255,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
         alert("댓글 삭제에 실패했습니다. 다시 시도해 주세요.")
       }
 
-      // 댓글 목록 새로고침
-      const updatedResponse = await API.get(`/board/${id}`)
-      if (updatedResponse.data?.data) {
-        setPost(updatedResponse.data.data)
-      }
+      await fetchPost(commentPage)
     } catch (error: any) {
       console.error(error);
       alert(error.response?.data?.message || "댓글 삭제에 실패했습니다. 다시 시도해 주세요.")
@@ -250,7 +286,6 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   const createdAt = post.created_at ? new Date(post.created_at) : null
-  const commentsCount = commentList.length ?? post.comments_count ?? 0
 
 
   // 게시글 삭제
@@ -411,37 +446,92 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
         </Card>
 
         {/* Comments List */}
-        {commentList.map((comment) => (
-          <Card key={comment.idx}>
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-3">
-                <Avatar>
-                  <AvatarFallback className="bg-secondary">
-                    {comment.users?.nickname?.[0] ?? "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <p className="font-medium">{comment.users?.nickname ?? "익명"}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {comment.created_at
-                          ? formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: ko })
-                          : "방금 전"}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
-                </div>
-                <Button 
-                  onClick={() => handleCommentDelete(comment.idx)}
-                  className="cursor-pointer hover:text-white">
-                  삭제
-                </Button>
-              </div>
+        {commentsLoading ? (
+          <Card className="border-2 border-dashed">
+            <CardContent className="p-6 text-center text-muted-foreground">
+              댓글을 불러오는 중입니다...
             </CardContent>
           </Card>
-        ))}
+        ) : commentList.length === 0 ? (
+          <Card className="border-2 border-dashed">
+            <CardContent className="p-6 text-center text-muted-foreground">
+              아직 댓글이 없습니다. 첫 댓글을 남겨보세요.
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {commentList.map((comment) => (
+              <Card key={comment.idx}>
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3">
+                    <Avatar>
+                      <AvatarFallback className="bg-secondary">
+                        {comment.users?.nickname?.[0] ?? "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="font-medium">{comment.users?.nickname ?? "익명"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {comment.created_at
+                              ? formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: ko })
+                              : "방금 전"}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+                    </div>
+                    <Button 
+                      onClick={() => handleCommentDelete(comment.idx)}
+                      className="cursor-pointer hover:text-white">
+                      삭제
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+
+            {commentTotalPages > 1 && (
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-6">
+                {/* <p className="text-sm text-muted-foreground">
+                  총 {commentTotalCount.toLocaleString()}개 댓글 · {commentPage}/{commentTotalPages} 페이지
+                </p> */}
+                <div className="flex items-center justify-center w-full gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCommentPageChange(commentPage - 1)}
+                    disabled={commentPage === 1 || commentsLoading}
+                    className="min-w-[70px]"
+                  >
+                    이전
+                  </Button>
+                  {getCommentPageNumbers().map((pageNumber) => (
+                    <Button
+                      key={pageNumber}
+                      variant={pageNumber === commentPage ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleCommentPageChange(pageNumber)}
+                      disabled={commentsLoading}
+                    >
+                      {pageNumber}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCommentPageChange(commentPage + 1)}
+                    disabled={commentPage === commentTotalPages || commentsLoading}
+                    className="min-w-[70px]"
+                  >
+                    다음
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   )

@@ -43,7 +43,7 @@ type FilterType = "all" | "cafe" | "fashion" | "it" | "food"
 type SortType = "recent" | "score" | "name"
 
 export default function MyPagePage() {
-  const { user, logout, isLoggedIn } = useAuthStore()
+  const { user, logout, isLoggedIn, updateNickname } = useAuthStore()
   const router = useRouter()
   const searchParams = useSearchParams()
   const defaultTab = searchParams.get("tab") || "profile"
@@ -273,12 +273,68 @@ const [postTotalCount, setPostTotalCount] = useState(0)
     }
   }, [isLoggedIn, user, router])
 
-  const handleSaveProfile = () => {
-    setIsEditingProfile(false)
-    toast({
-      title: "프로필 저장 완료",
-      description: "프로필 정보가 성공적으로 업데이트되었습니다.",
-    })
+  // 프로필 저장 핸들러: 닉네임 변경 API 호출
+  const handleSaveProfile = async () => {
+    // 닉네임 유효성 검사
+    if (!profileData.name || profileData.name.trim().length === 0) {
+      toast({
+        title: "입력 오류",
+        description: "닉네임을 입력해주세요.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // 닉네임 길이 제한
+    if (profileData.name.trim().length > 20) {
+      toast({
+        title: "입력 오류",
+        description: "닉네임은 20자 이하여야 합니다.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // 현재 닉네임과 동일한 경우
+    if (profileData.name.trim() === user?.nickname) {
+      setIsEditingProfile(false)
+      toast({
+        title: "변경 없음",
+        description: "닉네임이 변경되지 않았습니다.",
+      })
+      return
+    }
+
+    try {
+      // 닉네임 변경 API 호출
+      const response = await API.put('/user/nickname', {
+        nickname: profileData.name.trim()
+      })
+
+      if (response.data?.user) {
+        // authStore의 updateNickname 함수를 사용하여 전역 상태 업데이트
+        updateNickname(response.data.user.nickname)
+
+        // 프로필 데이터 업데이트
+        setProfileData(prev => ({
+          ...prev,
+          name: response.data.user.nickname
+        }))
+
+        setIsEditingProfile(false)
+        toast({
+          title: "프로필 저장 완료",
+          description: "닉네임이 성공적으로 변경되었습니다.",
+        })
+      }
+    } catch (error: any) {
+      console.error('닉네임 변경 실패:', error)
+      toast({
+        title: "프로필 저장 실패",
+        description: error.response?.data?.message || "닉네임 변경에 실패했습니다. 다시 시도해주세요.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleChangePassword = () => {

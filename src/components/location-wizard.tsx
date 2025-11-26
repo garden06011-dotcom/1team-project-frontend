@@ -68,103 +68,43 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
     { id: "high", label: "10,000만원", value: 10000 },
   ];
 
-  const analysisTypes = [
-    { id: "detailed", label: "아니요, 빠르게 분석할게요", subtitle: "기본 정보만으로 빠른 분석" },
-    { id: "fast", label: "네, 자세히 분석해주세요", subtitle: "상세한 분석 보기" },
-  ];
-
-   // 서울 제외 지역 ui 데이터
- const staticLocationData = {
-  경기: {
-    강화군: ["갈현동", "계산동", "금현동"],
-    계양구: ["계산동", "작전동", "효성동"],
-    미추홀구: ["용현동", "학익동", "도화동"],
-    남동구: ["구월동", "간석동", "만수동"],
-  },
-  인천: {
-    계양구: ["계산동", "작전동", "효성동", "병방동", "박촌동"],
-    미추홀구: ["용현동", "학익동", "도화동", "주안동", "관교동"],
-    남동구: ["구월동", "간석동", "만수동", "장수동", "서창동"],
-    연수구: ["옥련동", "선학동", "청학동", "동춘동", "송도동"],
-  },
-  부산: {
-    해운대구: ["우동", "중동", "좌동", "송정동", "재송동"],
-    수영구: ["광안동", "남천동", "민락동", "망미동"],
-    사하구: ["하단동", "당리동", "괴정동", "감천동"],
-  },
-  대구: {
-    수성구: ["범어동", "만촌동", "수성동", "황금동", "중동"],
-    달서구: ["성당동", "두류동", "본동", "이곡동"],
-  },
-  광주: {
-    동구: ["충장동", "금남동", "계림동", "산수동"],
-    서구: ["치평동", "농성동", "유덕동", "화정동"],
-  },
-  대전: {
-    서구: ["둔산동", "월평동", "만년동", "갈마동"],
-    유성구: ["봉명동", "구암동", "관평동", "도룡동"],
-  },
-  울산: {
-    남구: ["삼산동", "신정동", "달동", "무거동"],
-    동구: ["방어동", "일산동", "전하동", "화정동"],
-  },
-}
-
+  // const analysisTypes = [
+  //   { id: "detailed", label: "아니요, 빠르게 분석할게요", subtitle: "기본 정보만으로 빠른 분석" },
+  //   { id: "fast", label: "네, 자세히 분석해주세요", subtitle: "상세한 분석 보기" },
+  // ];
+  
   const [selections, setSelections] = useState({
     category: "",
     budget: 0,
     analysisType: "",
     city: "",
     district: "",
-    subdistrict: "",
+    // subdistrict: "",
   });
 
   const [selectedCity, setSelectedCity] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("");
-  const [selectedSubdistrict, setselectedSubdistrict] = useState("");
+  // const [selectedSubdistrict, setselectedSubdistrict] = useState("");
 
   const cities = locationData ? Object.keys(locationData) : [];
-  const districts = selectedCity && locationData ? Object.keys(locationData[selectedCity]) : [];
-  const subdistrict = selectedCity && selectedDistrict && locationData 
-    ? locationData[selectedCity][selectedDistrict] || [] 
+  const districts = selectedCity && locationData 
+    ? Array.isArray(locationData[selectedCity]) 
+      ? locationData[selectedCity] 
+      : Object.keys(locationData[selectedCity])
     : [];
+  // const subdistrict = selectedCity && selectedDistrict && locationData 
+  //   ? locationData[selectedCity][selectedDistrict] || [] 
+  //   : [];
 
   useEffect(() => {
     API.get("/api/map/location")
-      .then((res) => setLocationData({ ...res.data, ...staticLocationData }))
+      .then((res) => setLocationData(res.data))
       .catch(() => console.error("위치 데이터 불러오기 실패"))
       .finally(() => setLoadingLocations(false));
   }, []);
 
-  const handleNext = async () => {
-    if (step === 4) {
-      await API.post("/api/map/save", {
-        user_id: "tester1@gmail.com",
-        category: selections.category,
-        rent_range: selections.budget,
-        region_city: selections.city,
-        region_district: selections.district,
-        region_subdistrict: selections.subdistrict,
-      });
-
-      console.log("@@!@@!! selections:", selections)
-      const response = await API.post("/api/map/location-center", {
-        city: selections.city,
-        district: selections.district,
-        subdistrict: selections.subdistrict,
-        category: selections.category
-      });
-
-      console.log("@@!@@!! response:", response)
-      onComplete({ 
-        businessType: selections.category,
-        city: selections.city,
-        district: selections.district,
-        subdistrict: selections.subdistrict,
-        lat: response.data.lat, 
-        lng: response.data.lng 
-      });
-    } else setStep(step + 1);
+  const handleNext = () => {
+    setStep(step + 1);
   };
 
   const handleBack = () => {
@@ -175,19 +115,47 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
     }
   }
 
-  const toggleSubdistrict = (subdistrict: string) => {
-    setselectedSubdistrict(subdistrict) 
+  const toggleDistrict = (district: string) => {
+    setSelectedDistrict(district) 
   }
 
-  const applyLocationSelection = () => {
-    if (selectedSubdistrict) {
-      setSelections({
+  const applyLocationSelection = async () => {
+    if (selectedDistrict) {
+      const updatedSelections = {
         ...selections,
         city: selectedCity,
         district: selectedDistrict,
-        subdistrict: selectedSubdistrict,
-      })
-      setStep(4)
+        // subdistrict: selectedSubdistrict,
+      };
+      setSelections(updatedSelections);
+      console.log("여기까진 찍히니")
+      // 지역 선택 후 바로 분석 시작
+      await API.post("/api/map/save", {
+        user_id: "tester1@gmail.com",
+        category: updatedSelections.category,
+        rent_range: updatedSelections.budget,
+        region_city: updatedSelections.city,
+        region_district: updatedSelections.district,
+        // region_subdistrict: updatedSelections.subdistrict,
+      });
+
+      console.log("@@!@@!! selections:", updatedSelections)
+      const response = await API.post("/api/map/location-center", {
+        city: updatedSelections.city,
+        district: updatedSelections.district,
+        // subdistrict: updatedSelections.subdistrict,
+        category: updatedSelections.category
+      });
+
+      console.log("@@!@@!! response:", response)
+      onComplete({ 
+        businessType: updatedSelections.category,
+        city: updatedSelections.city,
+        district: updatedSelections.district,
+        subdistrict: "",
+        lat: response.data.lat, 
+        lng: response.data.lng 
+      });
     }
   }
 
@@ -197,10 +165,6 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
         return selections.category !== "" //업종
       case 2:
         return selections.budget > 0 //창업 비용
-      case 3:
-        return selectedSubdistrict !== "" //동/읍/면
-      case 4:
-        return selections.analysisType !== "" //더 자세한 분석
       default:
         return false
     }
@@ -227,9 +191,9 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">진행률</span>
-                <span className="font-medium">{step} / 4</span> 
+                <span className="font-medium">{step} / 3</span> 
               </div>
-              <Progress value={(step / 4) * 100} className="h-2" /> 
+              <Progress value={(step / 3) * 100} className="h-2" /> 
             </div>
   
           </CardHeader>
@@ -245,14 +209,13 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {businessTypes.map((type) => {
                     const Icon = type.icon
-                    const isSelected = selections.category === type.id
+                    const isSelected = selections.category == type.id
                     return (
                       <button
                         key={type.id}
                         onClick={() => {
                           console.log("type.id:", type.id)
                           setSelections(prev => ({ ...prev, category: type.id}))
-                          console.log("selections.category:", selections.category)
                         }}
                           
                         className={`p-4 rounded-lg border-2 transition-all hover:border-primary/50 ${
@@ -276,7 +239,7 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold mb-1">창업 비용은 얼마인가요?</h3>
-                  <p className="text-sm text-muted-foreground">예상 창업 비용을 입력해주세요</p>
+                  <p className="text-sm text-muted-foreground">예상 임대료를 입력해주세요</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium mb-2 block">창업 비용 (만원)</label>
@@ -313,13 +276,13 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
   
             {/* Three Column Layout */}
             <div className="border rounded-lg overflow-hidden">
-              <div className="grid grid-cols-3 border-b bg-muted/30">
+              <div className="grid grid-cols-2 border-b bg-muted/30">
                 <div className="p-3 text-center text-sm font-medium border-r">시/도</div>
                 <div className="p-3 text-center text-sm font-medium border-r">시/구/군</div>
-                <div className="p-3 text-center text-sm font-medium">동/읍/면</div>
+                {/* <div className="p-3 text-center text-sm font-medium">동/읍/면</div> */}
               </div>
   
-              <div className="grid grid-cols-3">
+              <div className="grid grid-cols-2">
                 {/* Cities Column */}
                 <div className="border-r max-h-[300px] overflow-y-auto">
                   {cities.map((city) => (
@@ -328,7 +291,7 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
                       onClick={() => {
                         setSelectedCity(city)
                         setSelectedDistrict("")
-                        setselectedSubdistrict("")
+                        // setselectedSubdistrict("")
                       }}
   
                       className={`w-full p-3 text-left text-sm hover:bg-muted/50 transition-colors ${
@@ -359,7 +322,7 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
           </div>
   
           {/* subdistict Column */}
-          <div className="max-h-[300px] overflow-y-auto">
+          {/* <div className="max-h-[300px] overflow-y-auto">
             {selectedDistrict ? (
               <>
               {subdistrict.map((subdistrict: string) => {
@@ -384,19 +347,19 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
                 시/구를 선택해주세요
               </div>
             )}
-          </div>
+          </div> */}
         </div>
       </div>
   
-      {selectedSubdistrict && (
+      {selectedDistrict && (
         <div className="space-y-2">
           <div className="text-sm">
             <span className="text-primary font-medium">1개만 선택할 수 있어요.</span>
           </div>
           <Badge>
-            {selectedSubdistrict}
+            {selectedDistrict}
             <button
-              onClick={() => setselectedSubdistrict("")}
+              onClick={() => setSelectedDistrict("")}
               className="ml-1 hover:bg-muted rounded-full p-0.5"
             >
               <X className="h-3 w-3" />
@@ -418,10 +381,10 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
             </Button>
             <Button
               onClick={applyLocationSelection}
-              disabled={!selectedSubdistrict}
+              disabled={!selectedDistrict}
               className="flex-1"
             >
-            {selectedSubdistrict ? `${selectedSubdistrict} 적용하기` : "지역 선택"}
+            {selectedDistrict ? `${selectedDistrict} 적용하기` : "지역 선택"}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </div>
@@ -429,7 +392,7 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
   )}
   
             {/* Step 5: Analysis Type */}
-            {step === 4 && (
+            {/* {step === 4 && (
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold mb-1">더 자세한 분석을 원하시나요?</h3>
@@ -459,8 +422,8 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
                 </div>
               </div>
             )}
-  
-            {/* Navigation - Only show for steps 1, 2, and 5 */}
+   */}
+            {/* Navigation - Only show for steps 1 and 2 */}
             {step !== 3 && (
               <div className="flex gap-3 pt-4 border-t">
                 <Button variant="outline" onClick={handleBack} className="flex-1 bg-transparent">
@@ -468,8 +431,8 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
                   이전
                 </Button>
                 <Button onClick={handleNext} disabled={!canProceed()} className="flex-1">
-                  {step === 4 ? "분석 시작하기" : "다음"}
-                  {step !== 4 && <ArrowRight className="h-4 w-4 ml-2" />}
+                  다음
+                  <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               </div>
             )}

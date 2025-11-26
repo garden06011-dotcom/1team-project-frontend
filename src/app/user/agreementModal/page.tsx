@@ -153,7 +153,7 @@ const AgreementPageModal = ({ isOpen, onClose, onConfirm }: AgreementModalProps)
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm">
       <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(15,23,42,0.4)] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col m-4 border border-slate-200/70">
         {/* 모달 헤더 */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-200 bg-gradient-to-r from-slate-900 to-indigo-900">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 bg-gradient-to-r from-slate-900 to-emerald-900">
           <h2 className="text-xl font-bold text-white tracking-tight">서비스 이용약관 동의</h2>
           <button
             onClick={onClose}
@@ -174,7 +174,7 @@ const AgreementPageModal = ({ isOpen, onClose, onConfirm }: AgreementModalProps)
             </div>
 
         {/* 전체 동의 섹션 */}
-        <div className="bg-gradient-to-br from-slate-900 to-indigo-900 rounded-2xl px-6 py-5 mb-8 shadow-2xl">
+        <div className="bg-gradient-to-br from-slate-900 to-emerald-900 rounded-2xl px-6 py-5 mb-8 shadow-2xl">
           <label className="flex items-center gap-4 cursor-pointer text-white">
             {/* 숨김 체크박스 + 커스텀 체크박스 */}
             <input
@@ -183,7 +183,7 @@ const AgreementPageModal = ({ isOpen, onClose, onConfirm }: AgreementModalProps)
               checked={allAgreed}
               className="peer sr-only"
             />
-            <span className="w-7 h-7 rounded-lg border-2 border-white/40 flex items-center justify-center bg-white/10 text-white text-lg transition peer-checked:bg-white peer-checked:text-indigo-600 peer-checked:border-white">
+            <span className="w-7 h-7 rounded-lg border-2 border-white/40 flex items-center justify-center bg-white/10 text-white text-lg transition peer-checked:bg-white peer-checked:text-emerald-600 peer-checked:border-white">
               {allAgreed && <CheckCircle2 className="w-5 h-5" />}
             </span>
             <span className="text-lg md:text-xl font-bold tracking-tight">
@@ -210,7 +210,7 @@ const AgreementPageModal = ({ isOpen, onClose, onConfirm }: AgreementModalProps)
                   <h3 className="text-base md:text-lg font-bold text-slate-900 flex-1">
                     {term.title}
                   </h3>
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-600 text-[11px] font-bold tracking-[0.08em] uppercase text-white">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-600 text-[11px] font-bold tracking-[0.08em] uppercase text-white">
                     필수
                   </span>
                 </div>
@@ -250,7 +250,7 @@ const AgreementPageModal = ({ isOpen, onClose, onConfirm }: AgreementModalProps)
                       ${
                         disabled
                           ? "bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed"
-                          : "bg-white border-slate-300 text-indigo-600 peer-checked:bg-indigo-500 peer-checked:border-indigo-500 peer-checked:text-white"
+                          : "bg-white border-slate-300 text-emerald-600 peer-checked:bg-emerald-500 peer-checked:border-emerald-500 peer-checked:text-white"
                       }`}
                   >
                     {isChecked && "✓"}

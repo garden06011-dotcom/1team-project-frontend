@@ -30,7 +30,8 @@ type BoardPost = {
 
 export default function CommunityPage() {
   const [searchQuery, setSearchQuery] = useState("")
-  const [sortBy, setSortBy] = useState<"latest" | "popular" | "likes">("latest")
+  // 정렬 옵션: latest(최신순), views(조회순), likes(좋아요순)
+  const [sortBy, setSortBy] = useState<"latest" | "views" | "likes">("latest")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [posts, setPosts] = useState<BoardPost[]>([])
   const [loading, setLoading] = useState(false);
@@ -78,6 +79,8 @@ export default function CommunityPage() {
     fetchPosts();
   }, [page, sortBy, selectedCategory]);
 
+  // 게시글 필터링 및 정렬: 검색어와 카테고리로 필터링
+  // 주의: 백엔드에서 이미 정렬된 데이터를 받아오므로, 클라이언트 사이드 정렬은 검색 필터링 후에만 필요
   const filteredPosts = useMemo(() => {
     return posts
       .filter((post) => {
@@ -85,10 +88,12 @@ export default function CommunityPage() {
         const content = post.content ?? ""
         const category = post.category ?? "전체"
 
+        // 검색어 필터링: 제목 또는 내용에 검색어가 포함된 경우
         const matchesSearch =
           title.toLowerCase().includes(searchQuery.toLowerCase()) ||
           content.toLowerCase().includes(searchQuery.toLowerCase())
 
+        // 카테고리 필터링: 선택한 카테고리와 일치하는 경우
         const matchesCategory =
           selectedCategory === "all" ||
           selectedCategory === "전체" ||
@@ -96,10 +101,11 @@ export default function CommunityPage() {
 
         return matchesSearch && matchesCategory
       })
+      // 검색 필터링 후에도 정렬 순서 유지 (백엔드 정렬이 우선이지만, 필터링 후 재정렬 필요 시)
       .sort((a, b) => {
         if (sortBy === "latest") return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
-        if (sortBy === "popular") return (b.views ?? 0) - (a.views ?? 0)
-        if (sortBy === "likes") return (b.likes ?? 0) - (a.likes ?? 0)
+        if (sortBy === "views") return (b.views ?? 0) - (a.views ?? 0)  // 조회순: 조회수가 많은 순서대로
+        if (sortBy === "likes") return (b.likes ?? 0) - (a.likes ?? 0)  // 좋아요순: 좋아요가 많은 순서대로
         return 0
       })
   }, [posts, searchQuery, selectedCategory, sortBy])
@@ -130,8 +136,9 @@ export default function CommunityPage() {
     return pages
   }
 
+  // 정렬 옵션 변경 핸들러: 정렬 변경 시 첫 페이지로 이동
   const handleSortChange = (value: string) => {
-    setSortBy(value as "latest" | "popular" | "likes")
+    setSortBy(value as "latest" | "views" | "likes")
     setPage(1)
   }
 
@@ -179,10 +186,10 @@ export default function CommunityPage() {
                 최신순
               </div>
             </SelectItem>
-            <SelectItem value="popular">
+            <SelectItem value="views">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                인기순
+                조회순
               </div>
             </SelectItem>
             <SelectItem value="likes">

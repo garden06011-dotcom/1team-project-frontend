@@ -84,7 +84,7 @@ export function Header() {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="gap-2 hover:bg-primary/10">
+                  <Button variant="ghost" className="gap-2 hover:bg-primary/10 cursor-pointer">
                     <Avatar className="h-8 w-8 border-2 border-primary/20">
                       <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-primary-foreground font-semibold">
                         {user.nickname?.[0] || user.email?.[0] || 'U'}

@@ -42,7 +42,7 @@ export default function LoginPage() {
     const emailValue = (e.target as HTMLInputElement).value
     setEmail(emailValue)
     if(!emailValue) {
-      setEmailErr("이메일을 입력해주세요.")
+      setEmailErr("")
       return;
     }
 
@@ -58,7 +58,7 @@ export default function LoginPage() {
     const passwordValue = (e.target as HTMLInputElement).value
     setPassword(passwordValue)
     if(!passwordValue) {
-      setPasswordErr('비밀번호를 입력해주세요');
+      setPasswordErr("")
       return;
     }
 
@@ -179,34 +179,38 @@ export default function LoginPage() {
             )}
             <div className="space-y-2">
               <Label htmlFor="email">이메일</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="example@email.com"
-                  value={email}
-                  onChange={handleEmailCheck}
-                  className="pl-10 h-11"
-                  required
-                />
-                <div className="text-sm text-red-500">{emailErr}</div>
+              <div className="space-y-1">
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="example@email.com"
+                    value={email}
+                    onChange={handleEmailCheck}
+                    className="pl-10 h-11"
+                    required
+                  />
+                </div>
+                {emailErr && <p className="text-sm text-red-500">{emailErr}</p>}
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">비밀번호</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={handlePasswordCheck}
-                  className="pl-10 h-11"
-                  required
-                />
-                <div className="text-sm text-red-500">{passwordErr}</div>
+              <div className="space-y-1">
+                <div className="relative">
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={handlePasswordCheck}
+                    className="pl-10 h-11"
+                    required
+                  />
+                </div>
+                {passwordErr && <p className="text-sm text-red-500">{passwordErr}</p>}
               </div>
             </div>
             <div className="flex items-center justify-between text-sm">

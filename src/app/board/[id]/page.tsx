@@ -14,13 +14,16 @@ import { ko } from "date-fns/locale"
 import API from "@/src/api/axiosApi"
 import { useAuth } from "@/src/lib/auth-context"
 
+// 댓글 타입 정의: 댓글 정보와 작성자 정보를 포함
 type Comment = {
   idx: number
   content: string | null
   created_at: string | null
   likes: number | null
+  user_id: string | null  // 댓글 작성자의 user_id (이메일) - 본인 댓글 확인용
   users: {
     nickname: string | null
+    user_id: string | null  // users 테이블의 user_id 필드
   } | null
 }
 
@@ -234,30 +237,43 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     }
     }
 
-  // 댓글 삭제
+  // 댓글 삭제 핸들러: 본인의 댓글만 삭제할 수 있도록 백엔드에 user_id 전달
   const handleCommentDelete = async (commentId: number) => {
+    // 로그인 확인: 로그인하지 않은 사용자는 삭제 불가
+    if (!user?.user_id) {
+      alert('로그인이 필요합니다.');
+      router.push('/user/login');
+      return;
+    }
 
+    // 삭제 확인 다이얼로그
     const confirmDelete = window.confirm("정말 댓글을 삭제하시겠습니까?");
     if(!confirmDelete) return;
 
-
+    // 중복 요청 방지: 이미 삭제 요청 중이면 무시
     if (commentLoading) return;
     setCommentLoading(true);
+    
     try {
+      // 댓글 삭제 API 호출: DELETE 메서드 사용
+      // 백엔드에서 본인 댓글인지 확인하기 위해 user_id를 body에 포함
       const response = await API.delete(`/board/${id}/comment/${commentId}`, {
-        params: {
-          commentId: commentId.toString(),
+        data: {
+          user_id: user.user_id  // 본인 확인을 위한 user_id 전달
         }
       })
+      
       if(response.data?.message) {
         alert(response.data.message);
       } else {
         alert("댓글 삭제에 실패했습니다. 다시 시도해 주세요.")
       }
 
+      // 댓글 삭제 후 현재 페이지의 댓글 목록 새로고침
       await fetchPost(commentPage)
     } catch (error: any) {
       console.error(error);
+      // 백엔드에서 반환한 에러 메시지 표시 (권한 없음, 로그인 필요 등)
       alert(error.response?.data?.message || "댓글 삭제에 실패했습니다. 다시 시도해 주세요.")
     } finally {
       setCommentLoading(false);
@@ -393,7 +409,9 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
               <MessageSquare className="mr-2 h-4 w-4" />
               댓글 {commentsCount}
             </Button>
-            {user?.user_id === post?.users?.user_id && (
+            {/* 게시글 수정/삭제 버튼: 본인 게시글이거나 관리자인 경우 표시 */}
+            {/* 관리자 확인: user_id가 'admin@admin.com'이거나 role이 'admin'인 경우 */}
+            {(user?.user_id === post?.users?.user_id || user?.user_id === 'admin@admin.com' || user?.role === 'admin') && (
               <div>
                 <Button variant="outline" 
                 className="flex-1 bg-transparent cursor-pointer" 
@@ -482,11 +500,21 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
                       </div>
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
                     </div>
-                    <Button 
-                      onClick={() => handleCommentDelete(comment.idx)}
-                      className="cursor-pointer hover:text-white">
-                      삭제
-                    </Button>
+                    {/* 댓글 삭제 버튼: 본인 댓글이거나 관리자인 경우 표시 */}
+                    {/* 관리자는 모든 댓글 삭제 가능, 일반 사용자는 본인 댓글만 삭제 가능 */}
+                    {user?.user_id && (
+                      (comment.user_id === user.user_id || comment.users?.user_id === user.user_id) || 
+                      user.user_id === 'admin@admin.com' || 
+                      user.role === 'admin'
+                    ) && (
+                      <Button 
+                        onClick={() => handleCommentDelete(comment.idx)}
+                        variant="outline"
+                        size="sm"
+                        className="cursor-pointer hover:text-white hover:bg-destructive hover:text-destructive-foreground">
+                        삭제
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

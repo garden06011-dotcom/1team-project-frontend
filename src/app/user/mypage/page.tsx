@@ -96,7 +96,9 @@ const [postTotalCount, setPostTotalCount] = useState(0)
     
     try {
       setLoadingPosts(true)
-      const response = await API.get(`/board/user/${user.email}`, {
+      // 이메일을 URL 인코딩하여 전달
+      const encodedEmail = encodeURIComponent(user.email)
+      const response = await API.get(`/board/user/${encodedEmail}`, {
         params: {
           page: targetPage,
           limit: POSTS_PER_PAGE,
@@ -391,7 +393,7 @@ const [postTotalCount, setPostTotalCount] = useState(0)
   const stats = [
     // { label: "관심 지역", value: favorites.length, icon: Heart, color: "text-red-500" },
     { label: "작성 글", value: posts.length, icon: FileText, color: "text-blue-500" },
-    // { label: "알림", value: unreadCount, icon: Bell, color: "text-primary" },
+    { label: "알림", value: unreadCount, icon: Bell, color: "text-primary" },
     // { label: "분석 횟수", value: 23, icon: TrendingUp, color: "text-secondary" },
   ]
 

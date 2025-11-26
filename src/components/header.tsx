@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/src/components/ui/button"
@@ -14,22 +14,68 @@ import {
 } from "@/src/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/src/components/ui/avatar"
 import { Badge } from "@/src/components/ui/badge"
-import { Building2, Menu, X, User, Settings, LogOut, Bell, Heart } from "lucide-react"
+import { Building2, Menu, X, User, Settings, LogOut, Bell, Heart, Newspaper } from "lucide-react"
 import { cn } from "@/src/lib/utils"
 import { useAuthStore } from "@/src/stores/authStore"
 import { useRouter } from "next/navigation"
+import { getNotifications, type Notification } from "@/src/api/notificationApi"
 
 export function Header() {
   const { user, logout, updateNickname } = useAuthStore()
   const pathname = usePathname()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-
+  const [notifications, setNotifications] = useState<Notification[]>([])
   const router = useRouter()
+
+  // 알림 데이터 가져오기
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return
+
+    try {
+      const response = await getNotifications()
+      if (response?.data) {
+        setNotifications(response.data)
+      }
+    } catch (error) {
+      console.error("알림 조회 실패:", error)
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications()
+    }
+  }, [user, fetchNotifications])
+
+  // 알림 업데이트 이벤트 리스너
+  useEffect(() => {
+    const handleNotificationUpdate = () => {
+      fetchNotifications()
+    }
+
+    // 커스텀 이벤트 리스너 등록
+    window.addEventListener('notification-updated', handleNotificationUpdate)
+
+    // 주기적으로 알림 확인 (30초마다)
+    const interval = setInterval(() => {
+      if (user) {
+        fetchNotifications()
+      }
+    }, 30000)
+
+    return () => {
+      window.removeEventListener('notification-updated', handleNotificationUpdate)
+      clearInterval(interval)
+    }
+  }, [user, fetchNotifications])
+
+  const unreadCount = notifications.filter((n) => !n.is_read).length
 
   const navItems = [
     { name: "홈", href: "/" },
     { name: "지도 분석", href: "/map" },
     { name: "커뮤니티", href: "/board" },
+    { name: "정보망", href: "/news" },
   ]
 
   return (
@@ -72,13 +118,11 @@ export function Header() {
                     님 환영합니다
                   </div> */}
                   <Bell className="h-5 w-5" />
-                  <Badge
-                    variant="destructive"
-                    className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs animate-pulse"
-                  >
-                    3
-                  </Badge>
-                  <span className="sr-only">알림 3개</span>
+                  {unreadCount > 0 && (
+              <Badge variant="destructive" className="h-5 px-2 text-xs animate-pulse absolute -top-2 -right-1">
+                {unreadCount}
+              </Badge>
+            )}
                 </Link>
               </Button>
 

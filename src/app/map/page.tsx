@@ -18,7 +18,7 @@ export default function MapPage() {
     businessType: string;
     city: string;
     district: string;
-    subdistrict: string;
+    // subdistrict: string;
     lat: number;
     lng: number;
   }) => {
@@ -43,8 +43,8 @@ export default function MapPage() {
       </div>
 
       <KakaoMap
-        selectedDong={mapData?.subdistrict || null}
-        dongCenter={{ lat: mapData?.lat || 0, lng: mapData?.lng || 0 }}
+        selectedDong={mapData ? `${mapData.city} ${mapData.district}` : null}
+        dongCenter={mapData?.lat && mapData?.lng ? { lat: mapData.lat, lng: mapData.lng } : null}
         businessType={mapData?.businessType || ""}
       />
 

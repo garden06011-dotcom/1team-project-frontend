@@ -183,7 +183,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
       setLikeLoading(true)
       const response = await API.post(`/board/${id}/like`, { 
         action,
-        user_id: user.user_id,   // ✅ 추가
+        user_id: user.user_id, 
       })
       
       if (response.data?.data?.likes !== undefined) {
@@ -193,6 +193,15 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
         setIsLiked(response.data.data.isLiked)
       } else {
         setIsLiked(!isLiked)
+      }
+      
+      // 좋아요를 눌렀을 때만 알림 업데이트 이벤트 발생 (unlike가 아닐 때)
+      // 백엔드에서 알림이 생성되었으므로 즉시 헤더 알림 업데이트
+      if (action === 'like' && response.data?.message === '좋아요 처리 성공') {
+        // 약간의 지연을 두어 백엔드 알림 생성이 완료된 후 이벤트 발생
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('notification-updated'))
+        }, 100)
       }
     } catch (error: any) {
       console.error(error)
@@ -227,6 +236,9 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
           setCommentText("")
           setCommentPage(1)
           await fetchPost(1)
+          
+          // 헤더에 알림 업데이트 이벤트 전송
+          window.dispatchEvent(new CustomEvent('notification-updated'))
         }
       } catch (error: any) {
         console.error(error);

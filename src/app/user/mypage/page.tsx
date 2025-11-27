@@ -154,6 +154,7 @@ const [postTotalCount, setPostTotalCount] = useState(0)
     newPassword: "",
     confirmPassword: "",
   })
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [isWithdrawing, setIsWithdrawing] = useState(false)
 
   const [favorites, setFavorites] = useState([
@@ -347,7 +348,7 @@ const [postTotalCount, setPostTotalCount] = useState(0)
     }
   }
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       toast({
         title: "입력 오류",
@@ -375,11 +376,28 @@ const [postTotalCount, setPostTotalCount] = useState(0)
       return
     }
 
-    setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" })
-    toast({
-      title: "비밀번호 변경 완료",
-      description: "비밀번호가 성공적으로 변경되었습니다.",
-    })
+    try {
+      setIsChangingPassword(true)
+      await API.post("/user/change-password", {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      })
+
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" })
+      toast({
+        title: "비밀번호 변경 완료",
+        description: "비밀번호가 성공적으로 변경되었습니다.",
+      })
+    } catch (error: any) {
+      console.error("비밀번호 변경 실패:", error)
+      toast({
+        title: "비밀번호 변경 실패",
+        description: error.response?.data?.message || "비밀번호 변경 중 오류가 발생했습니다.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsChangingPassword(false)
+    }
   }
 
   const handleDeactivateAccount = async () => {
@@ -773,9 +791,13 @@ const [postTotalCount, setPostTotalCount] = useState(0)
                   />
                 </div>
 
-                <Button onClick={handleChangePassword} className="w-full md:w-auto shadow-md">
+                <Button
+                  onClick={handleChangePassword}
+                  className="w-full md:w-auto shadow-md"
+                  disabled={isChangingPassword}
+                >
                   <Lock className="h-4 w-4 mr-2" />
-                  비밀번호 변경
+                  {isChangingPassword ? "변경 중..." : "비밀번호 변경"}
                 </Button>
               </div>
   

@@ -128,7 +128,6 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
         // subdistrict: selectedSubdistrict,
       };
       setSelections(updatedSelections);
-      console.log("여기까진 찍히니")
       // 지역 선택 후 바로 분석 시작
       await API.post("/api/map/save", {
         user_id: "tester1@gmail.com",
@@ -136,10 +135,8 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
         rent_range: updatedSelections.budget,
         region_city: updatedSelections.city,
         region_district: updatedSelections.district,
-        // region_subdistrict: updatedSelections.subdistrict,
       });
 
-      console.log("@@!@@!! selections:", updatedSelections)
       const response = await API.post("/api/map/location-center", {
         city: updatedSelections.city,
         district: updatedSelections.district,
@@ -147,7 +144,6 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
         category: updatedSelections.category
       });
 
-      console.log("@@!@@!! response:", response)
       onComplete({ 
         businessType: updatedSelections.category,
         city: updatedSelections.city,

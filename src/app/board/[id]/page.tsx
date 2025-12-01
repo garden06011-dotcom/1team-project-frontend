@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useEffect, useMemo, useState, useCallback } from "react"
+import { use, useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/src/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/src/components/ui/card"
@@ -64,7 +64,22 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   const [commentTotalPages, setCommentTotalPages] = useState(1)
   const [commentTotalCount, setCommentTotalCount] = useState(0)
   const [commentsLoading, setCommentsLoading] = useState(false)
+  
+  // 조회수 증가가 이미 실행되었는지 추적하는 ref
+  const viewCountIncremented = useRef<string | null>(null)
 
+  // 조회수 증가 함수 (한 번만 실행)
+  const incrementView = useCallback(async () => {
+    if (!id || viewCountIncremented.current === id) return
+    
+    try {
+      await API.post(`/board/${id}/view`)
+      viewCountIncremented.current = id
+    } catch (err: any) {
+      console.error('조회수 증가 실패:', err)
+      // 조회수 증가 실패해도 게시글은 표시
+    }
+  }, [id])
 
   const fetchPost = useCallback(
     async (
@@ -73,6 +88,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     ) => {
       if (!id) return
       const { showFullLoading = false } = options
+      
       try {
         if (showFullLoading) {
           setLoading(true)
@@ -111,10 +127,32 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     [id, user?.user_id]
   )
 
+  // 게시글 ID가 변경될 때만 조회수 증가 플래그 리셋 및 게시글 로드
   useEffect(() => {
     if (!id) return
+    // 새로운 게시글 ID로 변경될 때 조회수 증가 플래그 리셋
+    viewCountIncremented.current = null
     fetchPost(1, { showFullLoading: true })
-  }, [id, fetchPost])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]) // id만 의존성으로 사용하여 게시글 변경 시에만 실행
+  
+  // 게시글 로드 후 조회수 증가 (한 번만)
+  useEffect(() => {
+    if (!id || !post) return
+    // 이미 조회수를 증가시켰으면 스킵
+    if (viewCountIncremented.current === id) return
+    
+    // 게시글이 로드된 후 조회수 증가 (비동기로 실행하여 게시글 로드에 영향 없음)
+    incrementView()
+  }, [id, post, incrementView])
+  
+  // 사용자 정보가 로드된 후 좋아요 상태만 업데이트 (조회수 증가 없음)
+  useEffect(() => {
+    if (!id || !user?.user_id || !post || viewCountIncremented.current === id) return
+    // 조회수는 이미 증가했으므로 조회수 증가 없이 게시글만 다시 로드
+    fetchPost(commentPage)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.user_id]) // user_id만 의존성으로 사용
 
   const tags = useMemo(() => (post?.tags ? post.tags.split(",").map((tag) => tag.trim()).filter(Boolean) : []), [post?.tags])
   const commentList = post?.comments ?? []
@@ -126,6 +164,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     if (nextPage < 1 || nextPage > commentTotalPages) return
     if (nextPage === commentPage) return
     setCommentPage(nextPage)
+    // 댓글 페이지 변경 시에는 조회수 증가하지 않음
     fetchPost(nextPage)
   }
 
@@ -142,31 +181,6 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   }
 
 
-
-  // 좋아요 클릭 시 좋아요 수 토글 (증가/감소)
-  // const handleLikeClick = async () => {
-  //   // 중복 클릭 방지
-  //   if (likeLoading) return; // 이미 좋아요 처리 중이면 스킵
-    
-  //   const action = isLiked ? 'unlike' : 'like';
-    
-  //   try {
-  //     setLikeLoading(true);
-  //     const response = await API.post(`/board/${id}/like`, { action });
-      
-  //     // 백엔드에서 반환한 실제 좋아요 수를 사용
-  //     if (response.data?.data?.likes !== undefined) {
-  //       setPost((prev) => prev ? { ...prev, likes: response.data.data.likes } : null);
-  //       setIsLiked(!isLiked);
-  //       // console.log(response.data.data.likes)
-  //     }
-  //   } catch (error: any) {
-  //     console.error(error);
-  //     alert('좋아요 처리에 실패하였습니다. 다시 시도해 주세요')
-  //   } finally {
-  //     setLikeLoading(false);
-  //   }
-  // }
 
   const handleLikeClick = async () => {
     if (!user?.user_id) {
@@ -342,7 +356,7 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       {/* Back Button */}
-      <Button variant="ghost" className="mb-4" onClick={() => router.back()}>
+      <Button variant="ghost" className="mb-4" onClick={() => router.push('/board')}>
         <ArrowLeft className="mr-2 h-4 w-4" />
         목록으로
       </Button>

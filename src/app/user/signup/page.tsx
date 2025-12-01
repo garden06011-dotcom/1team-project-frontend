@@ -471,45 +471,7 @@ const payloadPreview = useMemo(() => {
                   required
                 />
               </div>
-            </div>
-            <Button type="button" 
-              className="w-full cursor-pointer hover:text-white transition-all duration-300" 
-              onClick={handleSendClick}>
-              {emailReadOnly ? "인증번호 재전송" : "인증번호 전송"}
-            </Button>
-
-
-            {
-              showCodeBox && (
-                  <div className="space-y-2">
-                    <Label htmlFor="email-code">인증번호</Label>
-                      <div className="relative flex items-center gap-1 justify-between">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="email-code"
-                          type="code"
-                          ref={codeRef}
-                          value={code}
-                          onChange={handleCode}
-                          className="pl-10 w-50"
-                          placeholder="******"
-                        />
-                        
-                        <Button 
-                          type="button"
-                          className="w-50 space-y-2 cursor-pointer hover:text-white transition-all duration-300"
-                          onClick={handleVerifyClick}
-                        // disabled={isLoading}
-                        >
-                          인증번호 확인
-                        </Button>
-                        
-                      </div>
-                      <div className="text-xs text-red-500">{codeErr}</div>
-                  </div>
-              )
-            }
-                
+            </div>                
             
 
             <div className="space-y-2">

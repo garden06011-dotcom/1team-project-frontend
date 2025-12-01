@@ -151,21 +151,25 @@ export function Header() {
                       마이페이지
                     </Link>
                   </DropdownMenuItem>
+                  {
+                    // 관리자 권한 확인 관리자 인 경우 관리자 대시보드 표시 
+                    // 즉, 관리자(role===admin)이고 이메일(email)이 admin@admin.com인 경우 관리자 대시보드 표시
+                    user.role === 'admin' && user.email === 'admin@admin.com' && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin" className="cursor-pointer">
+                          <Heart className="mr-2 h-4 w-4" />
+                          관리자 대시보드
+                        </Link>
+                      </DropdownMenuItem>
+                    )
+                  }
+                  
                   {/* <DropdownMenuItem asChild>
-                    <Link href="/user/mypage?tab=favorites" className="cursor-pointer">
-                      <Heart className="mr-2 h-4 w-4" />
-                      관심 지역
-                      <Badge variant="secondary" className="ml-auto">
-                        3
-                      </Badge>
-                    </Link>
-                  </DropdownMenuItem> */}
-                  <DropdownMenuItem asChild>
                     <Link href="/settings" className="cursor-pointer">
                       <Settings className="mr-2 h-4 w-4" />
                       설정
                     </Link>
-                  </DropdownMenuItem>
+                  </DropdownMenuItem> */}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     onClick={async () => {

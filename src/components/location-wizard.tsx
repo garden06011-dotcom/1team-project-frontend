@@ -16,6 +16,7 @@ import { Button } from "@/src/components/ui/button";
 import { Progress } from "@/src/components/ui/progress";
 import { Badge } from "@/src/components/ui/badge";
 import API from "@/src/api/axiosApi";
+import { useAuth } from "@/src/lib/auth-context";
 import {
   Coffee,
   Utensils,
@@ -48,6 +49,7 @@ interface LocationWizardProps {
 
 
 export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [locationData, setLocationData] = useState<any>(null);
   const [loadingLocations, setLoadingLocations] = useState(true);
@@ -88,9 +90,16 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
 
   const cities = locationData ? Object.keys(locationData) : [];
   const districts = selectedCity && locationData 
-    ? Array.isArray(locationData[selectedCity]) 
-      ? locationData[selectedCity] 
-      : Object.keys(locationData[selectedCity])
+    ? (() => {
+        const baseDistricts = Array.isArray(locationData[selectedCity]) 
+          ? locationData[selectedCity] 
+          : Object.keys(locationData[selectedCity]);
+        // 서울시인 경우 "서울시 전체" 옵션 추가
+        if (selectedCity === "서울특별시" || selectedCity === "서울") {
+          return ["서울시 전체", ...baseDistricts];
+        }
+        return baseDistricts;
+      })()
     : [];
   // const subdistrict = selectedCity && selectedDistrict && locationData 
   //   ? locationData[selectedCity][selectedDistrict] || [] 
@@ -128,18 +137,15 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
         // subdistrict: selectedSubdistrict,
       };
       setSelections(updatedSelections);
-      console.log("여기까진 찍히니")
       // 지역 선택 후 바로 분석 시작
       await API.post("/api/map/save", {
-        user_id: "tester1@gmail.com",
+        user_id: user?.user_id || user?.email || "",
         category: updatedSelections.category,
         rent_range: updatedSelections.budget,
         region_city: updatedSelections.city,
         region_district: updatedSelections.district,
-        // region_subdistrict: updatedSelections.subdistrict,
       });
 
-      console.log("@@!@@!! selections:", updatedSelections)
       const response = await API.post("/api/map/location-center", {
         city: updatedSelections.city,
         district: updatedSelections.district,
@@ -147,7 +153,6 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
         category: updatedSelections.category
       });
 
-      console.log("@@!@@!! response:", response)
       onComplete({ 
         businessType: updatedSelections.category,
         city: updatedSelections.city,

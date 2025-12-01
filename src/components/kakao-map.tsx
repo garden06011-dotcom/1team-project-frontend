@@ -28,9 +28,15 @@ import {
   ArrowUp,
   ArrowDown,
   Minus,
+  TrendingUp as TrendingUpIcon,
 } from "lucide-react";
 import PopulationCharts from "@/src/components/population-charts";
+import TimeDayCharts from "@/src/components/time-day-charts";
 import FacilityAnalysis, { FACILITY_CATEGORIES } from "@/src/components/facility-analysis";
+import RankingsChart from "@/src/components/rankings-chart";
+import CompetitorRankingTable from "@/src/components/competitor-ranking-table";
+import PredictionTab from "@/src/components/prediction-tab";
+import { generatePDFReport } from "@/src/utils/pdfGenerator";
 
 interface KakaoMapProps {
   selectedDong: string | null;
@@ -56,8 +62,8 @@ interface AnalysisData {
   touristSpots: number;
   culturalFacilities: number;
   competitors: number;
-  pedestrians: string;
-  revenue: string;
+  human: string;
+  sales: string;
   category: string;
   score?: string;
   subwayStations: number;
@@ -73,6 +79,17 @@ interface PopulationData {
   age: Array<{
     연령대: string;
     합계: number;
+  }>;
+}
+
+interface TimeDayData {
+  time: Array<{
+    시간대: string;
+    유동인구: number;
+  }>;
+  day: Array<{
+    요일: string;
+    유동인구: number;
   }>;
 }
 
@@ -97,10 +114,12 @@ export default function KakaoMap({ selectedDong, dongCenter, businessType }: Kak
   const [activeTab, setActiveTab] = useState("scores");
   const [currentDongs, setCurrentDongs] = useState<Array<{ dong: string; coordinates: number[][][] }>>([]);
   const [populationData, setPopulationData] = useState<PopulationData | null>(null);
+  const [timeDayData, setTimeDayData] = useState<TimeDayData | null>(null);
   const [facilityData, setFacilityData] = useState<{ [key: string]: FacilityData[] }>({});
+  const reportRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
   const [isLoadingFacilities, setIsLoadingFacilities] = useState(false);
   const [selectedFacilityCategory, setSelectedFacilityCategory] = useState<string | null>(null);
-  const [rankingType, setRankingType] = useState<"pedestrians" | "revenue" | "competitors">("pedestrians");
+  const [rankingOverlays, setRankingOverlays] = useState<any[]>([]); // 순위 오버레이 저장
 
   // 업종 타입 설정
   useEffect(() => {
@@ -132,6 +151,27 @@ export default function KakaoMap({ selectedDong, dongCenter, businessType }: Kak
     } catch (error) {
       console.error('유동인구 데이터 로드 실패:', error);
       setPopulationData(null);
+    }
+  };
+
+  // 시간대/요일 유동인구 데이터 로드
+  const loadTimeDayData = async (dongName: string) => {
+    try {
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/map/time-day-data`, {
+        dongName: dongName,
+      });
+
+      console.log("timeDayData:", response.data);
+      
+      if (response.data) {
+        setTimeDayData(response.data);
+      } else {
+        console.warn(`시간대/요일 유동인구 데이터를 찾을 수 없습니다: ${dongName}`);
+        setTimeDayData(null);
+      }
+    } catch (error) {
+      console.error('시간대/요일 유동인구 데이터 로드 실패:', error);
+      setTimeDayData(null);
     }
   };
 
@@ -319,6 +359,13 @@ export default function KakaoMap({ selectedDong, dongCenter, businessType }: Kak
         prev.forEach((m) => m.setMap(null));
         return [];
       });
+      // 기존 오버레이 제거
+      rankingOverlays.forEach(overlay => {
+        try {
+          overlay.setMap(null);
+        } catch (e) {}
+      });
+      setRankingOverlays([]);
       setFacilityData({});
 
       // 새 마커 생성
@@ -343,7 +390,10 @@ export default function KakaoMap({ selectedDong, dongCenter, businessType }: Kak
 
       // 유동인구 데이터 로드
       if (exactDong) {
-        await loadPopulationData(exactDong);
+        await Promise.all([
+          loadPopulationData(exactDong),
+          loadTimeDayData(exactDong)
+        ]);
       }
 
       // 마커 인포윈도우
@@ -364,17 +414,120 @@ export default function KakaoMap({ selectedDong, dongCenter, businessType }: Kak
         const newAnalysis: AnalysisData = {
           ...facilityRes,
           competitors: Number(aiRes.data["음식점경쟁업체수"].toFixed(1)),
-          pedestrians: `${aiRes.data["생활인구"].toFixed(1)}명`,
-          revenue: `${aiRes.data["임대료"].toFixed(1)}만원/㎡`,
+          human: `${aiRes.data["생활인구"].toFixed(1)}명`,
+          sales: `${aiRes.data["임대료"].toFixed(1)}만원/㎡`,
           category: currentBusinessType || "미분류",
           score: Number(aiRes.data["점수"]).toFixed(1),
         };
       
         setAnalysisList([{ marker: markerData, analysis: newAnalysis }]);
+        
+        // 순위 데이터 가져와서 1,2,3위 오버레이 마커 표시
+        await displayRankingOverlays(createdMap, district, exactDong || dong);
       } catch (err) {
         console.error("분석 오류:", err);
       }
     });
+  };
+  
+  // 순위 오버레이 마커 표시 함수
+  const displayRankingOverlays = async (createdMap: any, district?: string, dongName?: string) => {
+    if (!map || !createdMap) return;
+    
+    const { kakao } = window;
+    
+    // 기존 오버레이 제거
+    rankingOverlays.forEach(overlay => {
+      try {
+        overlay.setMap(null);
+      } catch (e) {}
+    });
+    setRankingOverlays([]);
+    
+    try {
+      // 순위 데이터 가져오기
+      const flaskUrl = process.env.NEXT_PUBLIC_FLASK_URL || 'http://localhost:5000';
+      const params: any = {
+        type: 'percent',
+        limit: 10
+      };
+      
+      if (district) {
+        params.gu = district + '구';
+      }
+      
+      const response = await axios.get(`${flaskUrl}/api/store`, { params });
+      console.log("📍 순위 데이터 (오버레이용):", response.data);
+      
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        // 1,2,3위만 필터링
+        const top3 = response.data.data.slice(0, 3).map((item: any, index: number) => ({
+          rank: index + 1,
+          district: (item.행정구 || item.구 || '').replace(/구$/, ''),
+          dong: (item.행정동 || item.동 || '').replace(/동$/, ''),
+          changeRate: item.증감률 || item.percent || 0
+        }));
+        
+        // 각 동의 좌표 가져오기
+        const geocoder = new kakao.maps.services.Geocoder();
+        const overlays: any[] = [];
+        
+        // Promise로 변환하여 순차 처리
+        const overlayPromises = top3.map((item: { rank: number; district: string; dong: string; changeRate: number }) => {
+          return new Promise<void>((resolve) => {
+            try {
+              const address = `${item.district}구 ${item.dong}동`;
+              geocoder.addressSearch(address, (result: any, status: any) => {
+                if (status === kakao.maps.services.Status.OK && result && result.length > 0) {
+                  const coords = new kakao.maps.LatLng(result[0].y, result[0].x);
+                  
+                  // 커스텀 오버레이 생성
+                  const content = `
+                    <div style="
+                      padding: 8px 12px;
+                      background: ${item.rank === 1 ? '#FFD700' : item.rank === 2 ? '#C0C0C0' : '#CD7F32'};
+                      color: white;
+                      border-radius: 20px;
+                      font-size: 12px;
+                      font-weight: bold;
+                      white-space: nowrap;
+                      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                      text-align: center;
+                    ">
+                      <div>${item.rank}위</div>
+                      <div style="font-size: 10px; margin-top: 2px;">
+                        ${item.changeRate > 0 ? '+' : ''}${item.changeRate.toFixed(1)}%
+                      </div>
+                    </div>
+                  `;
+                  
+                  const customOverlay = new kakao.maps.CustomOverlay({
+                    position: coords,
+                    content: content,
+                    yAnchor: 1,
+                  });
+                  
+                  customOverlay.setMap(createdMap);
+                  overlays.push(customOverlay);
+                } else {
+                  console.warn(`좌표를 찾을 수 없습니다: ${address}`);
+                }
+                resolve();
+              });
+            } catch (e) {
+              console.warn(`순위 오버레이 생성 실패 (${item.dong}동):`, e);
+              resolve();
+            }
+          });
+        });
+        
+        await Promise.all(overlayPromises);
+        setRankingOverlays(overlays);
+        console.log(`✅ 순위 오버레이 ${overlays.length}개 표시 완료`);
+      }
+    } catch (error) {
+      console.warn("순위 오버레이 데이터 로드 실패:", error);
+    }
   };
 
   // 지도 초기화
@@ -521,13 +674,14 @@ export default function KakaoMap({ selectedDong, dongCenter, businessType }: Kak
         <div className="lg:w-[480px] overflow-y-auto">
           {analysisList.length > 0 ? (
             analysisList.map((item, index) => (
-              <Card key={index} className="mb-4">
+              <div key={index} ref={(el) => { if (el) reportRefs.current[index] = el; }}>
+              <Card className="mb-4">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <CardTitle className="text-xl">
-                        {item.marker.district && `${item.marker.district}구 `}
-                        {item.marker.exactDong ? `${item.marker.exactDong}동` : item.marker.dong ? `${item.marker.dong}동` : ''}
+                        {item.marker.district && `${item.marker.district}구 `} 의 상권 추천 결과
+                        {/* {item.marker.exactDong ? `${item.marker.exactDong}동` : item.marker.dong ? `${item.marker.dong}동` : ''} */}
                       </CardTitle>
                       {/* <CardDescription className="mt-1">{item.marker.address}</CardDescription> */}
                     </div>
@@ -539,18 +693,25 @@ export default function KakaoMap({ selectedDong, dongCenter, businessType }: Kak
                     <TabsList className="w-full grid grid-cols-3">
                       <TabsTrigger value="scores"><Award className="h-4 w-4 mr-1" />점수 / 개요</TabsTrigger>
                       <TabsTrigger value="charts"><BarChart3 className="h-4 w-4 mr-1" />차트</TabsTrigger>
-                      <TabsTrigger value="ranks"><Trophy className="h-4 w-4 mr-1" />순위</TabsTrigger>
+                      <TabsTrigger value="prediction"><TrendingUpIcon className="h-4 w-4 mr-1" />AI 예측</TabsTrigger>
                       
                     </TabsList>
 
                     <TabsContent value="scores" className="space-y-4 mt-4">
+                      {/* 경쟁업체 순위표 (상단) */}
+                      <CompetitorRankingTable
+                        dongName={item.marker.exactDong || item.marker.dong}
+                        city={item.marker.city}
+                        district={item.marker.district}
+                      />
+                      
                       <div className="text-5xl font-bold text-primary mb-2">{item.analysis.score}점</div>
                       <p className="text-sm">{item.marker.address} 기준 분석 결과입니다.</p>
 
                       <div className="grid grid-cols-2 gap-3">
                         {[
-                          { icon: Users, label: "유동인구", value: item.analysis.pedestrians, color: "text-primary" },
-                          { icon: TrendingUp, label: "평균 임대료", value: item.analysis.revenue, color: "text-secondary" },
+                          { icon: Users, label: "유동인구", value: item.analysis.human, color: "text-primary" },
+                          { icon: TrendingUp, label: "평균 임대료", value: item.analysis.sales, color: "text-secondary" },
                           { icon: Store, label: "경쟁업체", value: `${item.analysis.competitors}개`, color: "text-accent" },
                           { icon: MapPin, label: "업종", value: item.analysis.category, color: "text-primary" },
                         ].map((stat, i) => (
@@ -567,147 +728,20 @@ export default function KakaoMap({ selectedDong, dongCenter, businessType }: Kak
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="ranks" className="space-y-4 mt-4">
-                      {/* 순위 기준 선택 */}
-                      <div className="flex gap-2">
-                        <Button
-                          variant={rankingType === "pedestrians" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setRankingType("pedestrians")}
-                          className="flex-1"
-                        >
-                          <Users className="h-4 w-4 mr-1" />
-                          유동인구
-                        </Button>
-                        <Button
-                          variant={rankingType === "revenue" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setRankingType("revenue")}
-                          className="flex-1"
-                        >
-                          <TrendingUp className="h-4 w-4 mr-1" />
-                          매출
-                        </Button>
-                        <Button
-                          variant={rankingType === "competitors" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setRankingType("competitors")}
-                          className="flex-1"
-                        >
-                          <Store className="h-4 w-4 mr-1" />
-                          경쟁업체
-                        </Button>
-                      </div>
-
-                      {/* 순위 테이블 */}
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center gap-2">
-                            <Trophy className="h-5 w-5 text-yellow-500" />
-                            <CardTitle className="text-lg">
-                              {rankingType === "pedestrians" && "유동인구"}
-                              {rankingType === "revenue" && "매출"}
-                              {rankingType === "competitors" && "경쟁업체"} 순위
-                            </CardTitle>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            {/* 테이블 헤더 */}
-                            <div className="grid grid-cols-12 gap-2 pb-2 border-b text-xs font-semibold text-muted-foreground">
-                              <div className="col-span-1 text-center">순위</div>
-                              <div className="col-span-4">동 이름</div>
-                              <div className="col-span-3 text-right">
-                                {rankingType === "pedestrians" && "유동인구"}
-                                {rankingType === "revenue" && "매출"}
-                                {rankingType === "competitors" && "경쟁업체"}
-                              </div>
-                              <div className="col-span-4 text-right">전년 대비 증감률</div>
-                            </div>
-
-                            {/* 순위 데이터  */}
-                            <div className="space-y-1">
-                              {[1, 2, 3, 4, 5].map((rank) => (
-                                <div
-                                  key={rank}
-                                  className="grid grid-cols-12 gap-2 py-2 px-2 rounded-lg hover:bg-muted/50 transition-colors"
-                                >
-                                  {/* 순위 */}
-                                  <div className="col-span-1 flex items-center justify-center">
-                                    {rank <= 3 ? (
-                                      <div
-                                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                                          rank === 1
-                                            ? "bg-yellow-500 text-white"
-                                            : rank === 2
-                                            ? "bg-gray-400 text-white"
-                                            : "bg-amber-600 text-white"
-                                        }`}
-                                      >
-                                        {rank}
-                                      </div>
-                                    ) : (
-                                      <span className="text-sm font-medium text-muted-foreground">{rank}</span>
-                                    )}
-                                  </div>
-
-                                  {/* 동 이름 */}
-                                  <div className="col-span-4 flex items-center">
-                                    <span className="text-sm font-medium">○○동</span>
-                                  </div>
-
-                                  {/* 수치 */}
-                                  <div className="col-span-3 flex items-center justify-end">
-                                    <span className="text-sm font-medium">
-                                      {rankingType === "pedestrians" && "○○,○○○명"}
-                                      {rankingType === "revenue" && "○○,○○○만원"}
-                                      {rankingType === "competitors" && "○○개"}
-                                    </span>
-                                  </div>
-
-                                  {/* 증감률 */}
-                                  <div className="col-span-4 flex items-center justify-end gap-1">
-                                    {rank === 1 && (
-                                      <>
-                                        <ArrowUp className="h-3 w-3 text-green-500" />
-                                        <span className="text-sm font-medium text-green-500">+○.○%</span>
-                                      </>
-                                    )}
-                                    {rank === 2 && (
-                                      <>
-                                        <ArrowDown className="h-3 w-3 text-red-500" />
-                                        <span className="text-sm font-medium text-red-500">-○.○%</span>
-                                      </>
-                                    )}
-                                    {rank === 3 && (
-                                      <>
-                                        <Minus className="h-3 w-3 text-muted-foreground" />
-                                        <span className="text-sm font-medium text-muted-foreground">0.0%</span>
-                                      </>
-                                    )}
-                                    {rank > 3 && (
-                                      <>
-                                        <ArrowUp className="h-3 w-3 text-green-500" />
-                                        <span className="text-sm font-medium text-green-500">+○.○%</span>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* 데이터 없음 메시지 */}
-                            <div className="text-center py-8 text-sm text-muted-foreground">
-                              <p>순위 데이터를 불러오는 중입니다...</p>
-                              <p className="text-xs mt-1">데이터 준비 중</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                    <TabsContent value="prediction" className="space-y-4 mt-4">
+                      <PredictionTab
+                        dongName={item.marker.exactDong || item.marker.dong}
+                        city={item.marker.city}
+                        district={item.marker.district}
+                        currentHuman={item.analysis.human}
+                        currentSales={item.analysis.sales}
+                        currentCompetitors={item.analysis.competitors}
+                      />
                     </TabsContent>
 
                     <TabsContent value="charts" className="space-y-6 mt-4">
                       <PopulationCharts populationData={populationData} />
+                      <TimeDayCharts timeDayData={timeDayData} />
                     </TabsContent>
                   </Tabs>
 
@@ -721,9 +755,44 @@ export default function KakaoMap({ selectedDong, dongCenter, businessType }: Kak
                     selectedFacilityCategory={selectedFacilityCategory}
                   />
 
-                  <Button className="w-full" size="lg">상세 리포트 다운로드</Button>
+                  <Button 
+                    className="w-full" 
+                    size="lg"
+                    onClick={async () => {
+                      try {
+                        const reportElement = reportRefs.current[index];
+                        if (!reportElement) {
+                          alert('리포트 영역을 찾을 수 없습니다.');
+                          return;
+                        }
+                        
+                        // PDF에 포함할 데이터 준비
+                        const reportData = {
+                          city: item.marker.city,
+                          district: item.marker.district,
+                          dong: item.marker.exactDong || item.marker.dong,
+                          businessType: item.analysis.category,
+                          rent: item.analysis.sales,
+                          score: item.analysis.score,
+                        };
+                        
+                        await generatePDFReport(reportElement, reportData);
+                      } catch (error: any) {
+                        console.error('PDF 생성 실패_map 화면:', error);
+                        const errorMessage = error?.message || '알 수 없는 오류';
+                        if (errorMessage.includes('색상') || errorMessage.includes('color')) {
+                          alert('PDF 생성 중 색상 처리 오류가 발생했습니다.\n브라우저를 최신 버전으로 업데이트하거나, 다른 브라우저에서 시도해주세요.');
+                        } else {
+                          alert(`PDF 생성에 실패했습니다: ${errorMessage}`);
+                        }
+                      }
+                    }}
+                  >
+                    상세 리포트 다운로드
+                  </Button>
                 </CardContent>
               </Card>
+              </div>
             ))
           ) : (
             <Card>

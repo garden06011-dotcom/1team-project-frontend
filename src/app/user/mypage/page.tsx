@@ -854,7 +854,7 @@ const [postTotalCount, setPostTotalCount] = useState(0)
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
             <div>
               <h2 className="text-2xl font-bold mb-1">알림</h2>
-              <p className="text-muted-foreground">관심 지역 변화와 커뮤니티 활동을 확인하세요</p>
+              <p className="text-muted-foreground">커뮤니티 활동 알림을 확인하세요. 내가 쓴 글의 좋아요와 댓글은 알림이 가지 않습니다. </p>
             </div>
             <div className="flex gap-2">
               <Button

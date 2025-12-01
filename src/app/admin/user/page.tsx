@@ -24,7 +24,7 @@ export default function AdminUserPage() {
     // 페이지네이션
     const [currentPage, setCurrentPage] = useState(1)
     const [totalPage, setTotalPage] = useState(1)
-    const USERS_PER_PAGE = 5
+    const USERS_PER_PAGE = 7
     
     // 검색 상태
     const [searchField, setSearchField] = useState<"name" | "nickname" | "email">("name")
@@ -123,19 +123,17 @@ export default function AdminUserPage() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-200 px-5 py-10">
       {/* adminBoard 컨테이너 */}
-      <div className="max-w-3xl mx-auto">
-        <Title className="flex justify-center items-center text-4xl font-extrabold text-slate-800 mb-6 cursor-default">
+      <div className="max-w-5xl mx-auto">
+        <Title className="flex justify-left items-center text-3xl font-extrabold text-slate-800 mb-6 cursor-default">
           유저 관리페이지
         </Title>
 
         {/* boardSection */}
         <div className="mt-8 flex flex-col gap-8">
           {/* leftSection */}
-          <section className="flex-1 bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+          <section className="flex-1 bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
             {/* 섹션 헤더 h2 */}
-            <h2 className="text-xl font-extrabold text-white text-center tracking-tight px-6 py-6 bg-gradient-to-r from-emerald-700 to-emerald-500">
-              유저 전체
-            </h2>
+
 
             {/* topSection - 검색 영역 */}
             <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6 px-6 py-6 border-b-2 border-slate-100">

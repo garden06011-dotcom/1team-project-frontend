@@ -17,12 +17,24 @@ export const handleEmailBtn = ({ email, onSuccess }: { email:string, onSuccess:(
         }
 
         try {
-            await sendEmailCode(email);
-            alert('이메일 전송에 성공했습니다. 3분내 입력해 주세요');
+            const response = await sendEmailCode(email);
+            // 실제 이메일 전송 성공
+            if (response?.code && !response?.devMode) {
+                alert('이메일 전송에 성공했습니다. 이메일을 확인하고 3분내 입력해 주세요');
+            } 
+            // 개발 모드: 이메일 전송 실패했지만 코드는 생성됨
+            else if (response?.devMode && response?.code) {
+                console.log('🔐 개발 모드 - 인증 코드:', response.code);
+                alert(`이메일 전송에 실패했습니다.\n\n인증 코드: ${response.code}\n(콘솔에서도 확인 가능)\n\n⚠️ 실제 이메일을 받으려면 네이버 앱 비밀번호를 설정해주세요.`);
+            } 
+            // 일반 성공
+            else {
+                alert('이메일 전송에 성공했습니다. 3분내 입력해 주세요');
+            }
             onSuccess();
         } catch (error: any) {
-            if(error.response?.data?.message === '이미 가입된 회원입니다.') {
-                alert('이미 가입된 회원입니다.');
+            if(error.response?.data?.message?.includes('이미 회원가입')) {
+                alert('이미 회원가입 된 이메일입니다.');
                 return;
             } else {
                 alert('이메일 전송에 실패했습니다.');
@@ -78,12 +90,24 @@ export const handleSendResetBtn = ({ email, onSuccess }: { email:string, onSucce
         }
 
         try {
-            await sendEmailResetCode(email);
-            alert('이메일 전송에 성공했습니다. 3분내 입력해 주세요');
+            const response = await sendEmailResetCode(email);
+            // 실제 이메일 전송 성공
+            if (response?.code && !response?.devMode) {
+                alert('이메일 전송에 성공했습니다. 이메일을 확인하고 3분내 입력해 주세요');
+            } 
+            // 개발 모드: 이메일 전송 실패했지만 코드는 생성됨
+            else if (response?.devMode && response?.code) {
+                console.log('🔐 개발 모드 - 인증 코드:', response.code);
+                alert(`이메일 전송에 실패했습니다.\n\n인증 코드: ${response.code}\n(콘솔에서도 확인 가능)\n\n⚠️ 실제 이메일을 받으려면 네이버 앱 비밀번호를 설정해주세요.`);
+            } 
+            // 일반 성공
+            else {
+                alert('이메일 전송에 성공했습니다. 3분내 입력해 주세요');
+            }
             onSuccess();
         } catch (error: any) {
-            if(error.response?.data?.message === '이메일이 존재하지 않습니다.') {
-                alert('이메일이 존재하지 않습니다.');
+            if(error.response?.data?.message?.includes('가입되지 않은')) {
+                alert('가입되지 않은 이메일입니다.');
                 return;
             } else {
                 alert('이메일 전송에 실패했습니다.');

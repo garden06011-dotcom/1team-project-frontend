@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/src/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src/components/ui/card"
@@ -24,10 +25,15 @@ import {
   Award,
   Target,
 } from "lucide-react"
+import { useAuthStore } from "@/src/stores/authStore"
+import { useChatBotStore } from "@/src/stores/chatBotStore"
 
 export default function HomePage() {
   const [currentBanner, setCurrentBanner] = useState(0)
   const [isVisible, setIsVisible] = useState(false)
+  const router = useRouter()
+  const { isLoggedIn } = useAuthStore()
+  const { openChatbot } = useChatBotStore()
 
   useEffect(() => {
     setIsVisible(true)
@@ -65,24 +71,34 @@ export default function HomePage() {
     {
       icon: MapPin,
       title: "지도 기반 상권 분석",
+      onClick: () => {
+        router.push("/map")
+      },
       description: "카카오맵 API로 원하는 위치를 선택하고 주변 정보를 한눈에 확인하세요",
       gradient: "from-emerald-500 to-teal-500",
     },
     {
       icon: TrendingUp,
       title: "시각화 데이터",
+      onClick: () => {
+        router.push("/map")
+      },
       description: "업종별, 지역별 데이터를 시각화하여 쉽게 확인하세요",
       gradient: "from-lime-500 to-green-500",
     },
     {
       icon: Users,
       title: "커뮤니티",
+      onClick: () => {
+        router.push("/board")
+      },
       description: "실제 창업자들의 생생한 경험과 정보를 나누세요",
       gradient: "from-green-500 to-emerald-500",
     },
     {
       icon: MessageSquare,
       title: "chat bot 상담",
+      className: "cursor-default",
       description: "AI 챗봇으로 창업에 대한 질문을 무료로 상담받으세요",
       gradient: "from-teal-500 to-cyan-500",
     },
@@ -204,7 +220,8 @@ export default function HomePage() {
             {features.map((feature, index) => (
               <Card
                 key={index}
-                className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-0 shadow-lg overflow-hidden relative"
+                onClick={feature.onClick}
+                className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-0 shadow-lg overflow-hidden relative cursor-pointer"
               >
                 <div
                   className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-10 transition-opacity`}
@@ -236,7 +253,7 @@ export default function HomePage() {
               <Badge variant="secondary" className="mb-6 text-base px-6 py-2 shadow-lg">
                 <Award className="h-4 w-4 mr-2" />왜 상부상조인가?
               </Badge>
-              <h2 className="text-4xl md:text-5xl font-bold mb-8">성공적인 창업을 위한 완벽한 파트너</h2>
+              <h2 className="text-5xl md:text-5xl font-bold mb-8 leading-relaxed">성공적인 창업을 위한<br className="mb-2"/> 완벽한 파트너</h2>
               <div className="space-y-5">
                 {[
                   "실시간으로 업데이트되는 정확한 데이터",

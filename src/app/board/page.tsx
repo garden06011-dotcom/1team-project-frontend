@@ -79,35 +79,41 @@ export default function CommunityPage() {
     fetchPosts();
   }, [page, sortBy, selectedCategory]);
 
-  // 게시글 필터링 및 정렬: 검색어와 카테고리로 필터링
-  // 주의: 백엔드에서 이미 정렬된 데이터를 받아오므로, 클라이언트 사이드 정렬은 검색 필터링 후에만 필요
+  // 게시글 필터링: 검색어와 카테고리로 필터링
+  // 백엔드에서 이미 정렬된 데이터를 받아오므로, 검색어가 없을 때는 백엔드 정렬을 그대로 사용
   const filteredPosts = useMemo(() => {
-    return posts
-      .filter((post) => {
-        const title = post.title ?? ""
-        const content = post.content ?? ""
-        const category = post.category ?? "전체"
+    const filtered = posts.filter((post) => {
+      const title = post.title ?? ""
+      const content = post.content ?? ""
+      const category = post.category ?? "전체"
 
-        // 검색어 필터링: 제목 또는 내용에 검색어가 포함된 경우
-        const matchesSearch =
-          title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          content.toLowerCase().includes(searchQuery.toLowerCase())
+      // 검색어 필터링: 제목 또는 내용에 검색어가 포함된 경우
+      const matchesSearch =
+        !searchQuery || // 검색어가 없으면 모든 게시글 포함
+        title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        content.toLowerCase().includes(searchQuery.toLowerCase())
 
-        // 카테고리 필터링: 선택한 카테고리와 일치하는 경우
-        const matchesCategory =
-          selectedCategory === "all" ||
-          selectedCategory === "전체" ||
-          category === selectedCategory
+      // 카테고리 필터링: 선택한 카테고리와 일치하는 경우
+      const matchesCategory =
+        selectedCategory === "all" ||
+        selectedCategory === "전체" ||
+        category === selectedCategory
 
-        return matchesSearch && matchesCategory
-      })
-      // 검색 필터링 후에도 정렬 순서 유지 (백엔드 정렬이 우선이지만, 필터링 후 재정렬 필요 시)
-      .sort((a, b) => {
+      return matchesSearch && matchesCategory
+    })
+
+    // 검색어가 있을 때만 클라이언트 사이드에서 재정렬 (백엔드 정렬이 우선)
+    if (searchQuery) {
+      return filtered.sort((a, b) => {
         if (sortBy === "latest") return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
         if (sortBy === "views") return (b.views ?? 0) - (a.views ?? 0)  // 조회순: 조회수가 많은 순서대로
         if (sortBy === "likes") return (b.likes ?? 0) - (a.likes ?? 0)  // 좋아요순: 좋아요가 많은 순서대로
         return 0
       })
+    }
+
+    // 검색어가 없으면 백엔드에서 정렬된 순서 그대로 사용
+    return filtered
   }, [posts, searchQuery, selectedCategory, sortBy])
 
   const handlePageChange = (nextPage: number) => {

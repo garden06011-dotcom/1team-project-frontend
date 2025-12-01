@@ -76,6 +76,7 @@ const POSTS_PER_PAGE = 5
 const [postPage, setPostPage] = useState(1)
 const [postTotalPages, setPostTotalPages] = useState(1)
 const [postTotalCount, setPostTotalCount] = useState(0)
+const [isDeletingPost, setIsDeletingPost] = useState(false)
 
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [profileData, setProfileData] = useState({
@@ -519,6 +520,57 @@ const [postTotalCount, setPostTotalCount] = useState(0)
     // { label: "분석 횟수", value: 23, icon: TrendingUp, color: "text-secondary" },
   ]
 
+  // 회원탈퇴
+  const handleWithdraw = async () => {
+    const confirmed = window.confirm("정말 탈퇴하시겠습니까?")
+    if(!confirmed) return;
+
+    try {
+      setIsWithdrawing(true)
+      await API.post("/user/withdraw")
+      toast({
+        title: "회원탈퇴 완료",
+        description: "회원탈퇴가 성공적으로 완료되었습니다.",
+      })
+      await logout()
+      router.push("/")
+    } catch (error: any) {
+      console.error('회원탈퇴 실패:', error)
+      toast({
+        title: "회원탈퇴 실패",
+        description: error.response?.data?.message || "회원탈퇴에 실패했습니다.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsWithdrawing(false)
+    }
+  }
+
+  // 게시글 삭제
+  const handleDeletePost = async (id: number) => {
+    const confirmed = window.confirm("정말 삭제하시겠습니까?")
+    if(!confirmed) return;
+
+
+    try {
+      setIsDeletingPost(true)
+      await API.delete(`/board/delete/${id}`)
+      setPosts((prev) => prev.filter((post) => post.id !== id))
+      toast({
+        title: "게시글 삭제 완료",
+        description: "게시글이 성공적으로 삭제되었습니다.",
+      })
+    } catch (error: any) {
+      console.error('게시글 삭제 실패:', error)
+      toast({
+        title: "게시글 삭제 실패",
+        description: error.response?.data?.message || "게시글 삭제에 실패했습니다.",
+        variant: "destructive",
+      })
+    }
+  }
+    
+
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-7xl">
       {/* Profile Header */}
@@ -539,12 +591,6 @@ const [postTotalCount, setPostTotalCount] = useState(0)
               </div>
               <p className="text-muted-foreground mb-5 text-lg">{user.email}</p>
               <div className="flex gap-3">
-                {/* <Button variant="outline" size="sm" className="shadow-sm bg-background hover:bg-muted" asChild>
-                  <Link href="/settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    설정
-                  </Link>
-                </Button> */}
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -552,7 +598,7 @@ const [postTotalCount, setPostTotalCount] = useState(0)
                     await logout();
                     router.push('/user/login');
                   }} 
-                  className="shadow-sm bg-background hover:bg-muted"
+                  className="shadow-sm bg-background cursor-pointer font-bold"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
                   로그아웃
@@ -613,7 +659,21 @@ const [postTotalCount, setPostTotalCount] = useState(0)
 
         <TabsContent value="profile" className="space-y-6">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-1">내 정보 관리</h2>
+            <div className="flex gap-2 items-center">
+              <h2 className="text-2xl font-bold mb-1">내 정보 관리</h2>
+              <Button
+                size="sm"
+                onClick={handleWithdraw}
+                className="w-auto h-7 md:h-7 px-2 py-0.5 shadow-md bg-gray-300 hover:bg-red-400 mb-1 p-4"
+                disabled={isWithdrawing}
+              >
+                <Trash2 className="h-3 w-3" />
+                <span className="ml-1 cursor-pointer text-white font-semibold text-xs">
+                  회원탈퇴
+                </span>
+              </Button>
+            </div>
+            
             <p className="text-muted-foreground">프로필 정보와 비밀번호를 관리하세요</p>
           </div>
 
@@ -683,74 +743,24 @@ const [postTotalCount, setPostTotalCount] = useState(0)
                     />
                   </div>
 
-                  {/* <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-sm font-medium flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      연락처
-                    </Label>
-                    <Input
-                      id="phone"
-                      value={profileData.phone}
-                      onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                      disabled={!isEditingProfile}
-                      className={cn(
-                        "h-11 transition-all",
-                        isEditingProfile && "border-primary/50 bg-background",
-                        !isEditingProfile && "bg-muted/50",
-                      )}
-                    />
-                  </div> */}
-
-                  {/* <div className="space-y-2">
-                    <Label htmlFor="business" className="text-sm font-medium flex items-center gap-2">
-                      <Briefcase className="h-4 w-4 text-muted-foreground" />
-                      업종
-                    </Label>
-                    <Input
-                      id="business"
-                      value={profileData.business}
-                      onChange={(e) => setProfileData({ ...profileData, business: e.target.value })}
-                      disabled={!isEditingProfile}
-                      className={cn(
-                        "h-11 transition-all",
-                        isEditingProfile && "border-primary/50 bg-background",
-                        !isEditingProfile && "bg-muted/50",
-                      )}
-                    />
-                  </div> */}
+                  
                 </div>
 
-                {/* <div className="space-y-2">
-                  <Label htmlFor="bio" className="text-sm font-medium">
-                    소개
-                  </Label>
-                  <Input
-                    id="bio"
-                    value={profileData.bio}
-                    onChange={(e) => setProfileData({ ...profileData, bio: e.target.value })}
-                    disabled={!isEditingProfile}
-                    className={cn(
-                      "h-11 transition-all",
-                      isEditingProfile && "border-primary/50 bg-background",
-                      !isEditingProfile && "bg-muted/50",
-                    )}
-                  />
-                </div> */}
               </div>
             </CardContent>
           </Card>
 
           {/* Password Change Card */}
-          <Card className="border-2 border-primary/10 w-full">
-            <CardContent className="p-6">
+          <Card className="border-2 border-primary/10 w-full flex flex-col md:flex-row justify-between gap-6">
+            <CardContent className="p-6 w-[100%]">
               <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <Lock className="h-5 w-5 text-primary" />
                 비밀번호 변경
               </h3>
 
-              <div className="grid gap-6 max-w-2xl">
-                <div className="space-y-2">
-                  <Label htmlFor="currentPassword" className="text-sm font-medium">
+              <div className="grid gap-6 max-w-2xl ml-8">
+                <div className="space-y-2 flex">
+                  <Label htmlFor="currentPassword" className="text-sm font-medium w-1/5">
                     현재 비밀번호
                   </Label>
                   <Input
@@ -759,12 +769,12 @@ const [postTotalCount, setPostTotalCount] = useState(0)
                     value={passwordData.currentPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
                     placeholder="현재 비밀번호를 입력하세요"
-                    className="h-11"
+                    className="h-11 w-full"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword" className="text-sm font-medium">
+                <div className="space-y-2 flex">
+                  <Label htmlFor="newPassword" className="text-sm font-medium w-1/5">
                     새 비밀번호
                   </Label>
                   <Input
@@ -777,8 +787,8 @@ const [postTotalCount, setPostTotalCount] = useState(0)
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-sm font-medium">
+                <div className="space-y-2 flex">
+                  <Label htmlFor="confirmPassword" className="text-sm font-medium w-1/5">
                     새 비밀번호 확인
                   </Label>
                   <Input
@@ -868,8 +878,8 @@ const [postTotalCount, setPostTotalCount] = useState(0)
                         <Button 
                           size="sm" 
                           variant="outline" 
-                          className="shadow-sm bg-background"
-                          onClick={() => router.push(`/board/edit/${post.id}`)}
+                          className="shadow-sm bg-background cursor-pointer"
+                          onClick={() => router.push(`/board/${post.id}/edit`)}
                           >
                           수정
                         </Button>
@@ -877,6 +887,7 @@ const [postTotalCount, setPostTotalCount] = useState(0)
                           size="sm"
                           variant="outline"
                           className="shadow-sm bg-background hover:bg-destructive hover:text-destructive-foreground"
+                          onClick={() => handleDeletePost(post.id)}
                         >
                           삭제
                         </Button>

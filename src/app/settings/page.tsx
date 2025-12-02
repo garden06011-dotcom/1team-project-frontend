@@ -120,20 +120,7 @@ export default function SettingsPage() {
               />
             </div>
             <Separator />
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <Label htmlFor="favorite-notif">관심 지역 알림</Label>
-                </div>
-                <p className="text-sm text-muted-foreground">관심 지역의 변화를 알립니다</p>
-              </div>
-              <Switch
-                id="favorite-notif"
-                checked={notifications.favorites}
-                onCheckedChange={(checked) => setNotifications({ ...notifications, favorites: checked })}
-              />
-            </div>
+    
             <Separator />
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">

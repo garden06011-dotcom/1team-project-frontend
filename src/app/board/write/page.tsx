@@ -83,6 +83,9 @@ export default function WritePostPage() {
         user_id: user.user_id 
       })
       
+      // 알림 업데이트 이벤트 발생 (헤더 알림 뱃지 업데이트)
+      window.dispatchEvent(new CustomEvent('notification-updated'))
+      
       router.push('/board')
     } catch (error:any) {
       console.log(error);

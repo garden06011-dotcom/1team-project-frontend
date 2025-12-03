@@ -6,20 +6,23 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
-import { Store, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { Store, Trophy } from "lucide-react";
 import axios from "axios";
 
 export interface CompetitorRankingData {
   rank: number;
   district: string;
   dong: string;
-  changeRate: number; // 전년 대비 증감률 (%)
+  score: number; // AI 예측 점수
+  작년_매출?: number;
+  작년_점포수?: number;
 }
 
 export interface CompetitorRankingTableProps {
   dongName?: string;
   city?: string;
   district?: string;
+  businessType?: string; // 업종 타입 추가
 }
 
 const flaskUrl = process.env.NEXT_PUBLIC_FLASK_URL || 'http://localhost:5000'
@@ -79,7 +82,8 @@ const generateTestRankingData = (
 export default function CompetitorRankingTable({ 
   dongName,
   city,
-  district 
+  district,
+  businessType
 }: CompetitorRankingTableProps) {
   const [rankingData, setRankingData] = useState<CompetitorRankingData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -88,27 +92,40 @@ export default function CompetitorRankingTable({
     const fetchRankingData = async () => {
       setIsLoading(true);
       try {
+        // 업종 타입 매핑
+        const typeMap: { [key: string]: string } = {
+          "카페": "cafe",
+          "한식": "korean",
+          "호프": "hof",
+          "cafe": "cafe",
+          "korean": "korean",
+          "hof": "hof"
+        };
+        const apiType = typeMap[businessType || ""] || "cafe";
         
-        // 구가 있으면 해당 구의 Top10, 없으면 전체 Top10
+        const flaskUrl = process.env.NEXT_PUBLIC_FLASK_URL || 'http://localhost:5000';
         const params: any = {
-          city: city,
-          gu: district + '구'
+          type: apiType,
+          limit: 10
         };
         
         if (district) {
           params.gu = district + '구';
         }
-        const response = await axios.get("http://localhost:5000/api/store");
+        
+        const response = await axios.get(`${flaskUrl}/api/rankings`, { params });
         
         console.log("@!!경쟁업체 순위 여기양 !!@!@!@response.data", response.data);
 
         if (response.data && response.data.data) {
           // API 응답을 컴포넌트 형식으로 변환
-          const apiData = response.data.data.map((item: any, index: number) => ({
-            rank: index + 1,
-            district: (item.행정구 || item.구 || '').replace(/구$/, ''),
-            dong: (item.행정동 || item.동 || '').replace(/동$/, ''),
-            changeRate: item.증감률 || item.percent || 0
+          const apiData = response.data.data.map((item: any) => ({
+            rank: item.rank || 1,
+            district: (item.district || '').replace(/구$/, ''),
+            dong: (item.dong || '').replace(/동$/, ''),
+            score: item.score || 0,
+            작년_매출: item.작년_매출 || 0,
+            작년_점포수: item.작년_점포수 || 0
           }));
           
           console.log("✅ 경쟁업체 순위 데이터 로드 성공:", apiData);
@@ -128,12 +145,10 @@ export default function CompetitorRankingTable({
     };
 
     fetchRankingData();
-  }, [dongName, city, district]);
+  }, [dongName, city, district, businessType]);
 
-  const formatChangeRate = (rate: number) => {
-    if (rate > 0) return `+${rate.toFixed(1)}%`;
-    if (rate < 0) return `${rate.toFixed(1)}%`;
-    return "0.0%";
+  const formatScore = (score: number) => {
+    return `${score.toFixed(1)}점`;
   };
 
   if (isLoading) {
@@ -161,7 +176,7 @@ export default function CompetitorRankingTable({
           <div className="grid grid-cols-12 gap-2 pb-2 border-b text-xs font-semibold text-muted-foreground">
             <div className="col-span-3 text-center">순위</div>
             <div className="col-span-5">동</div>
-            <div className="col-span-3 text-right">증감률</div>
+            <div className="col-span-3 text-right">점수</div>
           </div>
 
           {/* 순위 데이터 */}
@@ -195,32 +210,12 @@ export default function CompetitorRankingTable({
                   <span className="text-sm font-medium">{item.dong}동</span>
                 </div>
 
-                {/* 증감률 */}
+                {/* 점수 */}
                 <div className="col-span-3 flex items-center justify-end gap-1">
-                  {item.changeRate > 0 && (
-                    <>
-                      <ArrowUp className="h-3 w-3 text-green-500" />
-                      <span className="text-sm font-medium text-green-500">
-                        {formatChangeRate(item.changeRate)}
-                      </span>
-                    </>
-                  )}
-                  {item.changeRate < 0 && (
-                    <>
-                      <ArrowDown className="h-3 w-3 text-red-500" />
-                      <span className="text-sm font-medium text-red-500">
-                        {formatChangeRate(item.changeRate)}
-                      </span>
-                    </>
-                  )}
-                  {item.changeRate === 0 && (
-                    <>
-                      <Minus className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-sm font-medium text-muted-foreground">
-                        {formatChangeRate(item.changeRate)}
-                      </span>
-                    </>
-                  )}
+                  <Trophy className="h-3 w-3 text-yellow-500" />
+                  <span className="text-sm font-medium text-primary">
+                    {formatScore(item.score)}
+                  </span>
                 </div>
               </div>
             ))}

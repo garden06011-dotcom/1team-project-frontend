@@ -13,6 +13,14 @@ import { formatDistanceToNow } from "date-fns"
 import { ko } from "date-fns/locale"
 import API from "@/src/api/axiosApi"
 import { useAuth } from "@/src/lib/auth-context"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/src/components/ui/dialog"
 
 // 댓글 타입 정의: 댓글 정보와 작성자 정보를 포함
 type Comment = {
@@ -64,6 +72,11 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   const [commentTotalPages, setCommentTotalPages] = useState(1)
   const [commentTotalCount, setCommentTotalCount] = useState(0)
   const [commentsLoading, setCommentsLoading] = useState(false)
+  
+  // 모달 상태
+  const [deletePostModalOpen, setDeletePostModalOpen] = useState(false)
+  const [deleteCommentModalOpen, setDeleteCommentModalOpen] = useState(false)
+  const [selectedCommentId, setSelectedCommentId] = useState<number | null>(null)
   
   // 조회수 증가가 이미 실행되었는지 추적하는 ref
   const viewCountIncremented = useRef<string | null>(null)
@@ -272,9 +285,12 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
       return;
     }
 
-    // 삭제 확인 다이얼로그
-    const confirmDelete = window.confirm("정말 댓글을 삭제하시겠습니까?");
-    if(!confirmDelete) return;
+    setSelectedCommentId(commentId)
+    setDeleteCommentModalOpen(true)
+  }
+
+  const confirmCommentDelete = async () => {
+    if (!selectedCommentId || !user?.user_id) return;
 
     // 중복 요청 방지: 이미 삭제 요청 중이면 무시
     if (commentLoading) return;
@@ -283,17 +299,14 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     try {
       // 댓글 삭제 API 호출: DELETE 메서드 사용
       // 백엔드에서 본인 댓글인지 확인하기 위해 user_id를 body에 포함
-      const response = await API.delete(`/board/${id}/comment/${commentId}`, {
+      const response = await API.delete(`/board/${id}/comment/${selectedCommentId}`, {
         data: {
           user_id: user.user_id  // 본인 확인을 위한 user_id 전달
         }
       })
       
-      if(response.data?.message) {
-        alert(response.data.message);
-      } else {
-        alert("댓글 삭제에 실패했습니다. 다시 시도해 주세요.")
-      }
+      setDeleteCommentModalOpen(false)
+      setSelectedCommentId(null)
 
       // 댓글 삭제 후 현재 페이지의 댓글 목록 새로고침
       await fetchPost(commentPage)
@@ -332,17 +345,14 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
 
   // 게시글 삭제
   const handleDeleteClick = async () => {
+    setDeletePostModalOpen(true)
+  }
 
-    const confirmDelete = window.confirm('정말 게시글을 삭제하시겠습니까?');
-    
-    if(!confirmDelete) {
-      return;
-    }
-
+  const confirmDeletePost = async () => {
     try {
       const response = await API.delete(`/board/delete/${id}`)
+      setDeletePostModalOpen(false)
       if(response.data?.message) {
-        alert(response.data.message);
         router.push('/board');
       } else {
         alert('게시글 삭제에 실패했습니다. 다시 시도해 주세요')
@@ -587,6 +597,65 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
           </>
         )}
       </div>
+
+      {/* 게시글 삭제 확인 모달 */}
+      <Dialog open={deletePostModalOpen} onOpenChange={setDeletePostModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>게시글 삭제 확인</DialogTitle>
+            <DialogDescription>
+              정말로 이 게시글을 삭제하시겠습니까?
+              <br />
+              이 작업은 되돌릴 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeletePostModalOpen(false)}
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeletePost}
+            >
+              삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 댓글 삭제 확인 모달 */}
+      <Dialog open={deleteCommentModalOpen} onOpenChange={setDeleteCommentModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>댓글 삭제 확인</DialogTitle>
+            <DialogDescription>
+              정말로 이 댓글을 삭제하시겠습니까?
+              <br />
+              이 작업은 되돌릴 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteCommentModalOpen(false);
+                setSelectedCommentId(null);
+              }}
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmCommentDelete}
+            >
+              삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

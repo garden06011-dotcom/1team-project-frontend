@@ -14,7 +14,8 @@ import {
 } from "@/src/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/src/components/ui/avatar"
 import { Badge } from "@/src/components/ui/badge"
-import { Building2, Menu, X, User, Settings, LogOut, Bell, Heart, Newspaper } from "lucide-react"
+import { Menu, X, User, Settings, LogOut, Bell, Heart, Newspaper } from "lucide-react"
+import Image from "next/image"
 import { cn } from "@/src/lib/utils"
 import { useAuthStore } from "@/src/stores/authStore"
 import { useRouter } from "next/navigation"
@@ -83,8 +84,14 @@ export function Header() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 font-bold text-xl hover:opacity-80 transition-opacity">
-          <div className="p-1.5 bg-gradient-to-br from-primary to-secondary rounded-xl shadow-md">
-            <Building2 className="h-5 w-5 text-primary-foreground" />
+          <div className="p-1.5 bg-white border-2 border-green-500 rounded-xl shadow-md">
+            <Image 
+              src="/main_logo.png" 
+              alt="상부상조 로고" 
+              width={32} 
+              height={32}
+              className="object-contain"
+            />
           </div>
           <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">상부상조</span>
         </Link>

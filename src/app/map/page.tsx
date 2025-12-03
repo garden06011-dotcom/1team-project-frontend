@@ -21,6 +21,9 @@ export default function MapPage() {
     // subdistrict: string;
     lat: number;
     lng: number;
+    monthlyRent?: number;
+    deposit?: number;
+    area?: number;
   }) => {
     setMapData(data); // 창업 정보 저장
     setWizardDone(true); // 창업 정보 저장 완료
@@ -46,6 +49,7 @@ export default function MapPage() {
         selectedDong={mapData ? `${mapData.city} ${mapData.district}` : null}
         dongCenter={mapData?.lat && mapData?.lng ? { lat: mapData.lat, lng: mapData.lng } : null}
         businessType={mapData?.businessType || ""}
+        wizardData={mapData}
       />
 
       {showWizard && (

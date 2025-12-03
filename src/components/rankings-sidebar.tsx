@@ -11,9 +11,8 @@ import API from "@/src/api/axiosApi"
 
 interface RankingItem {
   rank: number
-  subdistrict: string | null
-  city: string | null
   district: string | null
+  city: string | null
   count: number
 }
 
@@ -25,7 +24,7 @@ export function RankingsSidebar() {
   useEffect(() => {
     const fetchRankings = async () => {
       try {
-        const response = await API.get("/api/map/subdistrict-rankings")
+        const response = await API.get("/api/map/district-rankings")
         if (response.data?.data) {
           setRankings(response.data.data)
         }
@@ -59,7 +58,7 @@ export function RankingsSidebar() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Trophy className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">인기 상권 랭킹</CardTitle>
+              <CardTitle className="text-lg">현재 인기있는 구</CardTitle>
             </div>
             <Button variant="ghost" size="icon" onClick={() => setIsCollapsed(true)}>
               <X className="h-4 w-4" />
@@ -77,10 +76,10 @@ export function RankingsSidebar() {
             </div>
           ) : (
             rankings.map((item, index) => (
-              <Link 
-                key={`${item.rank}-${item.subdistrict}-${index}`} 
-                href={`/map?location=${encodeURIComponent(item.subdistrict || '')}`}
-              >
+              // <Link 
+              //   key={`${item.rank}-${item.district}-${index}`} 
+              //   href={`/map?location=${encodeURIComponent(item.district || '')}`}
+              // >
                 <Card className="hover:shadow-md transition-shadow cursor-pointer">
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
@@ -101,35 +100,19 @@ export function RankingsSidebar() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="font-semibold text-sm truncate">
-                            {[item.city, item.district, item.subdistrict]
-                              .filter(Boolean)
-                              .map((part, idx) => {
-                                if (idx === 0) return `${part}특별시`;
-                                if (idx === 1) return `${part}`;
-                                if (idx === 2) return `${part}`;
-                                return part;
-                              })
-                              .join(' ') || '알 수 없음'}
+                            {item.district ? `${item.district}` : '알 수 없음'}
                           </h4>
                         </div>
                         <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
                           <MapPin className="h-3 w-3" />
                           <span className="truncate">
-                            {[item.city, item.district, item.subdistrict]
-                              .filter(Boolean)
-                              .map((part, idx) => {
-                                if (idx === 0) return `${part}특별시`;
-                                if (idx === 1) return `${part}`;
-                                if (idx === 2) return `${part}`;
-                                return part;
-                              })
-                              .join(' ') || '주소 없음'}
+                            {item.city ? `${item.city} ` : ''}{item.district ? `${item.district}` : '주소 없음'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1 text-xs">
                             <TrendingUp className="h-3 w-3 text-primary" />
-                            <span className="font-medium">{item.count}건</span>
+                            <span className="font-medium">누적 검색 수:{item.count}건</span>
                           </div>
                           <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden ml-2 max-w-[80px]">
                             <div 
@@ -144,7 +127,7 @@ export function RankingsSidebar() {
                     </div>
                   </CardContent>
                 </Card>
-              </Link>
+              // </Link>
             ))
           )}
 

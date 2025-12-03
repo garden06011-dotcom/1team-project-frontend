@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/ca
 import { Input } from "@/src/components/ui/input"
 import { ScrollArea } from "@/src/components/ui/scroll-area"
 import { MessageCircle, X, Send, Bot, Sparkles } from "lucide-react"
+import Image from "next/image"
 import { cn } from "@/src/lib/utils"
 import { ragChatStream, type Source, type ConversationMessage } from "@/src/api/chatApi"
 
@@ -154,13 +155,24 @@ export function Chatbot() {
     <>
       {/* Chat Button */}
       {!isOpen && (
-        <Button
-          onClick={() => setIsOpen(true)}
-          size="icon"
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
-        >
-          <MessageCircle className="h-6 w-6" />
-        </Button>
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+          <div className="px-3 py-1.5 bg-background/90 backdrop-blur-sm border border-primary/20 rounded-full shadow-md text-sm font-medium text-foreground whitespace-nowrap">
+            챗봇 문의하기
+          </div>
+          <Button
+            onClick={() => setIsOpen(true)}
+            size="icon"
+            className="h-22 w-22 rounded-full shadow-lg bg-green-500/30 hover:bg-green-500/50 border-2 border-green-500/40"
+          >
+            <Image 
+              src="/logo.png" 
+              alt="챗봇 로고" 
+              width={50} 
+              height={50}
+              className="object-contain"
+            />
+          </Button>
+        </div>
       )}
 
       {/* Chat Window */}
@@ -168,8 +180,14 @@ export function Chatbot() {
         <Card className="fixed bottom-6 right-6 w-96 h-[850px] shadow-2xl z-50 flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-primary rounded-lg">
-                <Sparkles className="h-5 w-5 text-primary-foreground" />
+              <div className="p-2 bg-green-500/30 border-2 border-green-500/40 rounded-lg">
+                <Image 
+                  src="/logo.png" 
+                  alt="챗봇 로고" 
+                  width={32} 
+                  height={32}
+                  className="object-contain"
+                />
               </div>
               <div>
                 <CardTitle className="text-base">AI 상담사</CardTitle>

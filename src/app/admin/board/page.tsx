@@ -5,6 +5,14 @@ import { useRouter } from "next/navigation"
 import API from "@/src/api/axiosApi"
 import { Title } from "@radix-ui/react-toast"
 import { Button } from "@/src/components/ui/button"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/src/components/ui/dialog"
 
 type BoardPost = {
     idx: number
@@ -42,6 +50,12 @@ export default function AdminBoardPage() {
   const POSTS_PER_PAGE = 7
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // 모달 상태
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [warningModalOpen, setWarningModalOpen] = useState(false)
+  const [selectedBoard, setSelectedBoard] = useState<BoardPost | null>(null)
+  const [warningData, setWarningData] = useState<{ message: string; userId: string } | null>(null)
 
   
 
@@ -109,16 +123,25 @@ export default function AdminBoardPage() {
 
   // 특정 게시글 삭제하기
   const handleDeleteBoard = async (boardId: number) => {
-    const confirmDeleteBoard = window.confirm("정말 삭제하시겠습니까?")
-    if (!confirmDeleteBoard) return
+    const board = boards.find(b => (b.id ?? b.idx) === boardId)
+    if (!board) return
+    
+    setSelectedBoard(board)
+    setDeleteModalOpen(true)
+  }
+
+  const confirmDeleteBoard = async () => {
+    if (!selectedBoard) return
+    const boardId = selectedBoard.id ?? selectedBoard.idx
 
     try {
       await API.delete(`/admin/board/${boardId}`)
-      alert("게시글 삭제 성공")
+      setDeleteModalOpen(false)
+      setSelectedBoard(null)
       fetchAdminBoard() // 삭제 후 목록 다시 불러오기
-    } catch (error) {
+    } catch (error: any) {
       console.log(error)
-      alert("게시글 삭제 실패:")
+      alert(error.response?.data?.message || "게시글 삭제 실패")
     }
   }
 
@@ -128,18 +151,30 @@ export default function AdminBoardPage() {
     warningMessage: string,
     userId: string,
   ) => {
-    const confirmSendWarning = window.confirm("정말 경고를 보내시겠습니까?")
-    if (!confirmSendWarning) return
+    const board = boards.find(b => (b.id ?? b.idx) === boardId)
+    if (!board) return
+    
+    setSelectedBoard(board)
+    setWarningData({ message: warningMessage, userId })
+    setWarningModalOpen(true)
+  }
+
+  const confirmSendWarning = async () => {
+    if (!selectedBoard || !warningData) return
+    const boardId = selectedBoard.id ?? selectedBoard.idx
 
     try {
       await API.post(`/admin/board/warning`, {
         boardId,
-        warningMessage,
-        user_id: userId,
+        warningMessage: warningData.message,
+        user_id: warningData.userId,
       })
-    } catch (error) {
+      setWarningModalOpen(false)
+      setWarningData(null)
+      setSelectedBoard(null)
+    } catch (error: any) {
       console.log(error)
-      alert("경고 보내기 실패 다시 시도해주세요")
+      alert(error.response?.data?.message || "경고 보내기 실패 다시 시도해주세요")
     }
   }
 
@@ -349,6 +384,67 @@ export default function AdminBoardPage() {
           </section>
         </div>
       </div>
+
+      {/* 삭제 확인 모달 */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>게시글 삭제 확인</DialogTitle>
+            <DialogDescription>
+              정말로 이 게시글을 삭제하시겠습니까?
+              <br />
+              이 작업은 되돌릴 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteModalOpen(false);
+                setSelectedBoard(null);
+              }}
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteBoard}
+            >
+              삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 경고 보내기 확인 모달 */}
+      <Dialog open={warningModalOpen} onOpenChange={setWarningModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>경고 보내기 확인</DialogTitle>
+            <DialogDescription>
+              정말로 경고를 보내시겠습니까?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setWarningModalOpen(false);
+                setWarningData(null);
+                setSelectedBoard(null);
+              }}
+            >
+              취소
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700"
+              onClick={confirmSendWarning}
+            >
+              확인
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

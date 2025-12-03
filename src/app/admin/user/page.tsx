@@ -4,6 +4,14 @@ import { useEffect, useState } from "react"
 import API from "@/src/api/axiosApi"
 import { Title } from "@radix-ui/react-toast"
 import { Button } from "@/src/components/ui/button"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/src/components/ui/dialog"
 
 type User = {
     idx: number
@@ -30,6 +38,12 @@ export default function AdminUserPage() {
     const [searchField, setSearchField] = useState<"name" | "nickname" | "email">("name")
     const [keyword, setKeyword] = useState('')
     const [appliedKeyword, setAppliedKeyword] = useState('')
+
+    // 모달 상태
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+    const [statusModalOpen, setStatusModalOpen] = useState(false)
+    const [selectedUser, setSelectedUser] = useState<User | null>(null)
+    const [actionType, setActionType] = useState<'delete' | 'toggle' | null>(null)
 
 
     const fetchUsers = async () => {
@@ -71,16 +85,48 @@ export default function AdminUserPage() {
 
     // 유저 정보 삭제하기
     const handleDeleteUser = async (userId: number) => {
-        const confirmDeleteUser = window.confirm('정말 삭제하시겠습니까?');
-        if(!confirmDeleteUser) return;
+        const user = users.find(u => u.idx === userId);
+        if (!user) return;
+        
+        setSelectedUser(user);
+        setActionType('delete');
+        setDeleteModalOpen(true);
+    }
+
+    const confirmDeleteUser = async () => {
+        if (!selectedUser) return;
         
         try {
-            await API.delete(`/admin/user/${userId}`);
-            alert('유저 정보를 삭제했습니다');
+            await API.delete(`/admin/user/${selectedUser.idx}`);
+            setDeleteModalOpen(false);
+            setSelectedUser(null);
+            setActionType(null);
             fetchUsers();
-        } catch (error) {
+        } catch (error: any) {
             console.log(error);
-            alert('유저 삭제에 실패했습니다.')
+            alert(error.response?.data?.message || '유저 삭제에 실패했습니다.');
+        }
+    }
+
+    // 유저 상태 토글 (use_yn Y/N 변경)
+    const handleToggleUserStatus = async (user: User) => {
+        setSelectedUser(user);
+        setActionType('toggle');
+        setStatusModalOpen(true);
+    }
+
+    const confirmToggleStatus = async () => {
+        if (!selectedUser) return;
+        
+        try {
+            await API.patch(`/admin/user/${selectedUser.idx}/status`);
+            setStatusModalOpen(false);
+            setSelectedUser(null);
+            setActionType(null);
+            fetchUsers();
+        } catch (error: any) {
+            console.log(error);
+            alert(error.response?.data?.message || '회원 상태 변경에 실패했습니다.');
         }
     }
 
@@ -232,15 +278,14 @@ export default function AdminUserPage() {
                           {new Date(user.created_at).toLocaleDateString('ko-KR')}
                         </td>
                         <td className={`py-3 text-center font-semibold ${user.use_yn === 'Y' ? 'text-emerald-600' : 'text-rose-500'}`}>
-                          {user.use_yn === 'Y' ? '활성' : '비활성'}
+                          {user.use_yn === 'Y' ? '활동회원' : '탈퇴회원'}
                         </td>
                         <td className="py-3 text-center">
                           <button
-                            className="w-20 md:w-24 h-8 text-[0.85rem] font-bold rounded-lg text-white bg-emerald-600 disabled:bg-slate-400 cursor-pointer transition-all duration-300 hover:bg-emerald-700"
-                            onClick={() => handleDeleteUser(user.idx)}
-                            disabled={user.use_yn !== 'Y'}
+                            className="w-20 md:w-24 h-8 text-[0.85rem] font-bold rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer transition-all duration-300"
+                            onClick={() => handleToggleUserStatus(user)}
                           >
-                            {user.use_yn === 'Y' ? '비활성화' : '비활성화됨'}
+                            {user.use_yn === 'Y' ? '탈퇴 처리' : '회원 복구'}
                           </button>
                         </td>
                       </tr>
@@ -293,6 +338,71 @@ export default function AdminUserPage() {
           </section>
         </div>
       </div>
+
+      {/* 삭제 확인 모달 */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>유저 삭제 확인</DialogTitle>
+            <DialogDescription>
+              정말로 {selectedUser?.name || selectedUser?.nickname || '이 유저'}를 삭제하시겠습니까?
+              <br />
+              이 작업은 되돌릴 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteModalOpen(false);
+                setSelectedUser(null);
+                setActionType(null);
+              }}
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteUser}
+            >
+              삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 상태 변경 확인 모달 */}
+      <Dialog open={statusModalOpen} onOpenChange={setStatusModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>회원 상태 변경</DialogTitle>
+            <DialogDescription>
+              {selectedUser?.use_yn === 'Y' 
+                ? `${selectedUser?.name || selectedUser?.nickname || '이 회원'}을 탈퇴 처리하시겠습니까?`
+                : `${selectedUser?.name || selectedUser?.nickname || '이 회원'}을 회원으로 복구하시겠습니까?`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setStatusModalOpen(false);
+                setSelectedUser(null);
+                setActionType(null);
+              }}
+            >
+              취소
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700"
+              onClick={confirmToggleStatus}
+            >
+              확인
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     )
 }

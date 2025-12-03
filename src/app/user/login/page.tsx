@@ -10,7 +10,8 @@ import { Button } from "@/src/components/ui/button"
 import { Input } from "@/src/components/ui/input"
 import { Label } from "@/src/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/src/components/ui/card"
-import { Building2, Mail, Lock, Sparkles } from "lucide-react";
+import { Mail, Lock, Sparkles } from "lucide-react";
+import Image from "next/image";
 import { EmailVal, PasswordVal } from "@/src/lib/validation";
 import API from "@/src/api/axiosApi";
 
@@ -151,8 +152,14 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-2xl border-2 border-primary/20">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-gradient-to-br from-primary to-secondary rounded-xl shadow-lg">
-              <Building2 className="h-8 w-8 text-primary-foreground" />
+            <div className="p-3 bg-white rounded-xl shadow-lg">
+              <Image 
+                src="/main_logo.png" 
+                alt="상부상조 로고" 
+                width={56} 
+                height={56}
+                className="object-contain"
+              />
             </div>
           </div>
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
@@ -168,12 +175,12 @@ export default function LoginPage() {
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">또는</span>
+                <span className="bg-background px-2 text-muted-foreground"></span>
               </div>
             </div>
 
             {error && (
-              <div className="p-3 text-sm text-destructive-foreground bg-destructive/10 border border-destructive/20 rounded-lg">
+              <div className="p-3 text-sm text-destructive bg-destructive/20 border border-destructive/40 rounded-lg">
                 {error}
               </div>
             )}

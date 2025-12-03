@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import axios from 'axios';
 
 export interface PDFReportData {
   city?: string;
@@ -8,6 +9,35 @@ export interface PDFReportData {
   businessType?: string;
   rent?: string;
   score?: string;
+}
+
+export interface SimplePDFData {
+  businessType: string;
+  rent: number;
+  city: string;
+  district: string;
+  lat: number;
+  lng: number;
+}
+
+export interface WizardPDFData {
+  businessType: string;
+  monthlyRent: number;
+  deposit: number;
+  area: number;
+  district: string;
+  city?: string;
+  topDongData: {
+    동?: string;
+    dong?: string;
+    점수?: number;
+    score?: number;
+    매출?: number;
+    점포수?: number;
+    정규화매출효율?: number;
+    정규화성장률?: number;
+    정규화경쟁밀도?: number;
+  };
 }
 
 /**
@@ -641,6 +671,260 @@ export async function generatePDFReport(
       clonedElement.parentNode.removeChild(clonedElement);
     }
     
+    throw error;
+  }
+}
+
+/**
+ * 사용자가 선택한 데이터로 모델을 실행하고 텍스트만 PDF로 저장
+ */
+export async function generateSimplePDFReport(data: SimplePDFData) {
+  try {
+    // 모델 실행하여 점수 가져오기
+    const response = await axios.post(`${process.env.NEXT_PUBLIC_FLASK_URL}/predict`, {
+      lat: data.lat,
+      lng: data.lng
+    });
+
+    const score = Number(response.data["점수"]).toFixed(1);
+
+    // Canvas를 사용하여 텍스트를 이미지로 변환
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas context를 가져올 수 없습니다.');
+
+    // Canvas 크기 설정
+    canvas.width = 800;
+    canvas.height = 600;
+    
+    // 배경색 설정
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 텍스트 스타일 설정
+    ctx.fillStyle = '#000000';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+
+    let yPosition = 50;
+
+    // 제목
+    ctx.font = 'bold 32px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('상권 분석 결과', canvas.width / 2, yPosition);
+    yPosition += 60;
+
+    // 구분선
+    ctx.strokeStyle = '#cccccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(50, yPosition);
+    ctx.lineTo(canvas.width - 50, yPosition);
+    ctx.stroke();
+    yPosition += 40;
+
+    // 선택한 정보
+    ctx.font = '24px Arial, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`업종: ${data.businessType}`, 50, yPosition);
+    yPosition += 40;
+    
+    ctx.fillText(`임대료: ${data.rent.toLocaleString()}만원`, 50, yPosition);
+    yPosition += 40;
+    
+    ctx.fillText(`위치: ${data.city} ${data.district}`, 50, yPosition);
+    yPosition += 40;
+
+    // 다운로드 시간
+    const downloadTime = new Date();
+    const dateStr = `${downloadTime.getFullYear()}.${String(downloadTime.getMonth() + 1).padStart(2, '0')}.${String(downloadTime.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(downloadTime.getHours()).padStart(2, '0')}:${String(downloadTime.getMinutes()).padStart(2, '0')}:${String(downloadTime.getSeconds()).padStart(2, '0')}`;
+    ctx.font = '20px Arial, sans-serif';
+    ctx.fillStyle = '#666666';
+    ctx.fillText(`다운로드 시간: ${dateStr} ${timeStr}`, 50, yPosition);
+    yPosition += 60;
+
+    // 결과 점수
+    ctx.font = 'bold 40px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#0066cc';
+    ctx.fillText(`결과: ${score}점`, canvas.width / 2, yPosition);
+
+    // Canvas를 이미지로 변환
+    const imgData = canvas.toDataURL('image/png');
+
+    // PDF 생성
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 10;
+    
+    // 이미지 크기 계산 (비율 유지)
+    const imgWidth = pageWidth - 2 * margin;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    // 이미지를 PDF에 추가
+    doc.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
+
+    // 파일명 생성
+    const fileName = `상권분석_${data.district}_${dateStr}.pdf`;
+
+    // PDF 저장
+    doc.save(fileName);
+  } catch (error) {
+    console.error('PDF 생성 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * Wizard 검색 조건과 1위 동 정보를 PDF로 저장
+ */
+export async function generateWizardPDFReport(data: WizardPDFData) {
+  try {
+    // Canvas를 사용하여 텍스트를 이미지로 변환
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas context를 가져올 수 없습니다.');
+
+    // Canvas 크기 설정
+    canvas.width = 800;
+    canvas.height = 900;
+    
+    // 배경색 설정
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 텍스트 스타일 설정
+    ctx.fillStyle = '#000000';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+
+    let yPosition = 50;
+
+    // 제목
+    ctx.font = 'bold 32px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('상권 분석 결과 리포트', canvas.width / 2, yPosition);
+    yPosition += 60;
+
+    // 구분선
+    ctx.strokeStyle = '#cccccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(50, yPosition);
+    ctx.lineTo(canvas.width - 50, yPosition);
+    ctx.stroke();
+    yPosition += 40;
+
+    // 검색 조건 섹션
+    ctx.font = 'bold 24px Arial, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('검색 조건', 50, yPosition);
+    yPosition += 40;
+
+    ctx.font = '20px Arial, sans-serif';
+    ctx.fillText(`업종: ${data.businessType}`, 50, yPosition);
+    yPosition += 35;
+    
+    ctx.fillText(`월세: ${data.monthlyRent.toLocaleString()}만원`, 50, yPosition);
+    yPosition += 35;
+    
+    ctx.fillText(`보증금: ${data.deposit.toLocaleString()}만원`, 50, yPosition);
+    yPosition += 35;
+    
+    ctx.fillText(`면적: ${data.area}㎡`, 50, yPosition);
+    yPosition += 35;
+    
+    ctx.fillText(`위치: ${data.city || '서울특별시'} ${data.district}`, 50, yPosition);
+    yPosition += 50;
+
+    // 구분선
+    ctx.beginPath();
+    ctx.moveTo(50, yPosition);
+    ctx.lineTo(canvas.width - 50, yPosition);
+    ctx.stroke();
+    yPosition += 40;
+
+    // 1위 상권 정보 섹션
+    ctx.font = 'bold 24px Arial, sans-serif';
+    ctx.fillText('1위 상권 분석 결과', 50, yPosition);
+    yPosition += 40;
+
+    ctx.font = '20px Arial, sans-serif';
+    const dongName = data.topDongData.동 || data.topDongData.dong || '1위 동';
+    ctx.fillText(`동: ${dongName}`, 50, yPosition);
+    yPosition += 35;
+
+    const score = data.topDongData.점수 || data.topDongData.score || 0;
+    ctx.font = 'bold 24px Arial, sans-serif';
+    ctx.fillStyle = '#0066cc';
+    ctx.fillText(`예측 점수: ${score.toFixed(1)}점`, 50, yPosition);
+    yPosition += 40;
+
+    ctx.font = '20px Arial, sans-serif';
+    ctx.fillStyle = '#000000';
+
+    if (data.topDongData.매출 !== undefined && data.topDongData.매출 > 0) {
+      const salesText = data.topDongData.매출 >= 100000000 
+        ? `${(data.topDongData.매출 / 100000000).toFixed(1)}억 ${((data.topDongData.매출 % 100000000) / 10000).toFixed(0)}만원`
+        : `${Math.round(data.topDongData.매출 / 10000)}만원`;
+      ctx.fillText(`2025년 예측 매출: ${salesText}`, 50, yPosition);
+      yPosition += 35;
+    }
+
+    if (data.topDongData.점포수 !== undefined && data.topDongData.점포수 > 0) {
+      ctx.fillText(`총 점포수: ${data.topDongData.점포수}개`, 50, yPosition);
+      yPosition += 35;
+    }
+
+    if (data.topDongData.정규화매출효율 !== undefined) {
+      ctx.fillText(`정규화 매출 효율: ${data.topDongData.정규화매출효율.toFixed(2)}%`, 50, yPosition);
+      yPosition += 35;
+    }
+
+    if (data.topDongData.정규화성장률 !== undefined) {
+      ctx.fillText(`정규화 성장률: ${data.topDongData.정규화성장률.toFixed(2)}%`, 50, yPosition);
+      yPosition += 35;
+    }
+
+    if (data.topDongData.정규화경쟁밀도 !== undefined) {
+      ctx.fillText(`정규화 경쟁 밀도: ${data.topDongData.정규화경쟁밀도.toFixed(2)}%`, 50, yPosition);
+      yPosition += 40;
+    }
+
+    // 다운로드 시간
+    const downloadTime = new Date();
+    const dateStr = `${downloadTime.getFullYear()}.${String(downloadTime.getMonth() + 1).padStart(2, '0')}.${String(downloadTime.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(downloadTime.getHours()).padStart(2, '0')}:${String(downloadTime.getMinutes()).padStart(2, '0')}:${String(downloadTime.getSeconds()).padStart(2, '0')}`;
+    ctx.font = '18px Arial, sans-serif';
+    ctx.fillStyle = '#666666';
+    ctx.textAlign = 'center';
+    ctx.fillText(`다운로드 시간: ${dateStr} ${timeStr}`, canvas.width / 2, yPosition);
+
+    // Canvas를 이미지로 변환
+    const imgData = canvas.toDataURL('image/png');
+
+    // PDF 생성
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 10;
+    
+    // 이미지 크기 계산 (비율 유지)
+    const imgWidth = pageWidth - 2 * margin;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    // 이미지를 PDF에 추가
+    doc.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
+
+    // 파일명 생성
+    const fileName = `상권분석_${data.district}_${dongName}_${dateStr}.pdf`;
+
+    // PDF 저장
+    doc.save(fileName);
+  } catch (error) {
+    console.error('PDF 생성 실패:', error);
     throw error;
   }
 }

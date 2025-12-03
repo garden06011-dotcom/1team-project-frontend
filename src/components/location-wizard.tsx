@@ -43,6 +43,9 @@ interface LocationWizardProps {
     subdistrict: string;
     lat: number;
     lng: number;
+    monthlyRent?: number;
+    deposit?: number;
+    area?: number;
   }) => void;
   onClose: () => void;
 }
@@ -81,6 +84,9 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
     analysisType: "",
     city: "",
     district: "",
+    monthlyRent: 0,
+    deposit: 0,
+    area: 0,
     // subdistrict: "",
   });
 
@@ -90,16 +96,9 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
 
   const cities = locationData ? Object.keys(locationData) : [];
   const districts = selectedCity && locationData 
-    ? (() => {
-        const baseDistricts = Array.isArray(locationData[selectedCity]) 
-          ? locationData[selectedCity] 
-          : Object.keys(locationData[selectedCity]);
-        // 서울시인 경우 "서울시 전체" 옵션 추가
-        if (selectedCity === "서울특별시" || selectedCity === "서울") {
-          return ["서울시 전체", ...baseDistricts];
-        }
-        return baseDistricts;
-      })()
+    ? (Array.isArray(locationData[selectedCity]) 
+        ? locationData[selectedCity] 
+        : Object.keys(locationData[selectedCity]))
     : [];
   // const subdistrict = selectedCity && selectedDistrict && locationData 
   //   ? locationData[selectedCity][selectedDistrict] || [] 
@@ -137,29 +136,53 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
         // subdistrict: selectedSubdistrict,
       };
       setSelections(updatedSelections);
+      
+      // rent_range를 monthlyRent, deposit, area로 구성
+      const rentRange = `월세: ${updatedSelections.monthlyRent}만원, 보증금: ${updatedSelections.deposit}만원, 면적: ${updatedSelections.area}㎡`;
+      
       // 지역 선택 후 바로 분석 시작
-      await API.post("/api/map/save", {
-        user_id: user?.user_id || user?.email || "",
-        category: updatedSelections.category,
-        rent_range: updatedSelections.budget,
-        region_city: updatedSelections.city,
-        region_district: updatedSelections.district,
-      });
+      try {
+        await API.post("/api/map/save", {
+          user_id: user?.user_id || user?.email || "guest",
+          category: updatedSelections.category,
+          rent_range: rentRange,
+          region_city: updatedSelections.city,
+          region_district: updatedSelections.district,
+        });
+      } catch (error) {
+        console.error("분석 요청 저장 실패:", error);
+        // 에러가 발생해도 wizard는 계속 진행
+      }
 
-      const response = await API.post("/api/map/location-center", {
-        city: updatedSelections.city,
-        district: updatedSelections.district,
-        // subdistrict: updatedSelections.subdistrict,
-        category: updatedSelections.category
-      });
+      // "서울시 전체" 선택 시 서울시 중심 좌표 사용
+      let lat = 37.566535;
+      let lng = 126.9779692;
+      
+      if (selectedDistrict !== "서울시 전체") {
+        try {
+          const response = await API.post("/api/map/location-center", {
+            city: updatedSelections.city,
+            district: updatedSelections.district,
+            // subdistrict: updatedSelections.subdistrict,
+            category: updatedSelections.category
+          });
+          lat = response.data.lat;
+          lng = response.data.lng;
+        } catch (error) {
+          console.error("위치 중심 좌표 가져오기 실패:", error);
+        }
+      }
 
       onComplete({ 
         businessType: updatedSelections.category,
         city: updatedSelections.city,
         district: updatedSelections.district,
         subdistrict: "",
-        lat: response.data.lat, 
-        lng: response.data.lng 
+        lat, 
+        lng,
+        monthlyRent: updatedSelections.monthlyRent,
+        deposit: updatedSelections.deposit,
+        area: updatedSelections.area,
       });
     }
   }
@@ -169,7 +192,7 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
       case 1:
         return selections.category !== "" //업종
       case 2:
-        return selections.budget > 0 //창업 비용
+        return selections.monthlyRent > 0 && selections.deposit > 0 && selections.area > 0 //월세, 보증금, 면적
       default:
         return false
     }
@@ -239,33 +262,43 @@ export function LocationWizard({ onComplete, onClose }: LocationWizardProps) {
               </div>
             )}
   
-            {/* Step 2: Budget */}
+            {/* Step 2: Monthly Rent, Deposit, Area */}
             {step === 2 && (
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-semibold mb-1">창업 비용은 얼마인가요?</h3>
-                  <p className="text-sm text-muted-foreground">예상 임대료를 입력해주세요</p>
+                  <h3 className="text-lg font-semibold mb-1">임대 정보를 입력해주세요</h3>
+                  <p className="text-sm text-muted-foreground">월세, 보증금, 면적을 입력해주세요</p>
                 </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">창업 비용 (만원)</label>
-                  <input
-                    type="number"
-                    value={selections.budget || ""}
-                    onChange={(e) => setSelections({ ...selections, budget: Number.parseInt(e.target.value) || 0 })}
-                    placeholder="5000"
-                    className="w-full px-4 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <div className="grid grid-cols-3 gap-2 mt-3">
-                    {budgetOptions.map((option) => (
-                      <Button
-                        key={option.id}
-                        variant={selections.budget === option.value ? "default" : "outline"}
-                        onClick={() => setSelections({ ...selections, budget: option.value })}
-                        className="w-full"
-                      >
-                        {option.label}
-                      </Button>
-                    ))}
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">월세 (만원)</label>
+                    <input
+                      type="number"
+                      value={selections.monthlyRent || ""}
+                      onChange={(e) => setSelections({ ...selections, monthlyRent: Number.parseFloat(e.target.value) || 0 })}
+                      placeholder="100"
+                      className="w-full px-4 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">보증금 (만원)</label>
+                    <input
+                      type="number"
+                      value={selections.deposit || ""}
+                      onChange={(e) => setSelections({ ...selections, deposit: Number.parseFloat(e.target.value) || 0 })}
+                      placeholder="5000"
+                      className="w-full px-4 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">면적 (㎡)</label>
+                    <input
+                      type="number"
+                      value={selections.area || ""}
+                      onChange={(e) => setSelections({ ...selections, area: Number.parseFloat(e.target.value) || 0 })}
+                      placeholder="33"
+                      className="w-full px-4 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
                   </div>
                 </div>
               </div>

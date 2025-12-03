@@ -227,16 +227,16 @@ export default function FindPasswordPage() {
               <div className="text-xs text-red-500">{emailErr}</div>
             </div>
             {/* 인증번호 전송 button */}
-            <Button 
+            {/* <Button 
             type="button"
             className="w-full space-y-2 cursor-pointer hover:text-white transition-all duration-300"
             onClick={handleSendClick}
             >
               인증번호 전송
-            </Button>
+            </Button> */}
 
             {/* 인증번호 기입란 및 인증번호 확인 */}
-                <div className="space-y-2" style={{ display: showCodeBox ? "block" : "none" }}>
+                {/* <div className="space-y-2" style={{ display: showCodeBox ? "block" : "none" }}>
                 <Label htmlFor="email-code">인증번호</Label>
                 <div className="relative flex items-center gap-2 justify-between">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -260,7 +260,7 @@ export default function FindPasswordPage() {
                   </Button>  
                   </div>
                   <div className="text-xs text-red-500">{codeErr}</div>
-                </div>
+                </div> */}
             
 
             <div className="space-y-2">
